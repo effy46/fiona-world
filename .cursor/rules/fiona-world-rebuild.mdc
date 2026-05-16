@@ -1,0 +1,19 @@
+---
+description: Durable implementation notes for Fiona World portfolio rebuild.
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+# Fiona World Rebuild Notes
+
+- Do not commit or push from this repo unless Fiona explicitly asks.
+- The locked stack is Vite + React + TypeScript, R3F/Drei/Three, vite-react-ssg, Zustand, Framer Motion, Tone.js, react-helmet-async, Leva, and cookieless analytics.
+- `vite-ssg` was requested originally, but it is Vue-focused. Fiona approved `vite-react-ssg` as the React-compatible equivalent. Keep script name `npm run build:ssg`.
+- `portfolioSections` in `src/content/portfolio.ts` is the content source of truth for routes, nav, HTML panels, 3D labels, and prerendered copy.
+- 3D visual constraints are strict: use `MeshBasicMaterial` only; no realtime lights, no shadows, no `MeshStandardMaterial`, no `MeshLambertMaterial`.
+- Keep the SSG static fallback crawler-visible. Initial SSR/prerender output should render `StaticView`, so `curl dist/projects/index.html` includes full project content.
+- GitHub Pages deploy uses `GITHUB_PAGES=true npm run build:ssg`, with Vite base `/fiona-world/`.
+- Local preview should use normal `npm run build:ssg` without `GITHUB_PAGES=true`; GitHub Pages asset paths are expected only for deploy.
+- Known placeholders: contact links, real resume PDF, skills depth markers, case-study body, project impact lines, diagrams/screenshots, and real GoatCounter endpoint.
+- Character is a primitive low-poly approximation of the attached Fiona spec: long dark hair, light blue shirt, cream pants, white shoes, brown crossbody bag.
