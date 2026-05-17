@@ -180,7 +180,6 @@ export function InteractiveWorld({ activeSection }: InteractiveWorldProps) {
               transition={{ duration: 0.35, ease: 'easeInOut' }}
             />
           </AnimatePresence>
-          <PathOverlay waypoints={sceneView.pathGraph.waypoints} edges={sceneView.pathGraph.edges} />
           <motion.div
             className={`character-marker facing-${characterFacing}`}
             initial={false}
@@ -194,6 +193,17 @@ export function InteractiveWorld({ activeSection }: InteractiveWorldProps) {
               alt=""
             />
           </motion.div>
+          {/* Invisible hotspot click targets — no visual marker, just touch zones */}
+          {sceneView.hotspots.map((hotspot) => (
+            <button
+              key={hotspot.id}
+              className={`hotspot-invisible`}
+              style={{ left: `${hotspot.x}%`, top: `${hotspot.y}%` }}
+              type="button"
+              onClick={() => handleHotspot(hotspot.id)}
+              aria-label={hotspot.label}
+            />
+          ))}
           {activeSection === 'entry' && (
             <Crank
               state={entryRotatorState}
@@ -202,22 +212,7 @@ export function InteractiveWorld({ activeSection }: InteractiveWorldProps) {
               onStateChange={rotateEntry}
             />
           )}
-          {sceneView.hotspots.map((hotspot) => (
-            <button
-              key={hotspot.id}
-              className={`hotspot hotspot-${hotspot.kind ?? 'walk'}`}
-              style={{ left: `${hotspot.x}%`, top: `${hotspot.y}%` }}
-              type="button"
-              onClick={() => handleHotspot(hotspot.id)}
-              aria-label={hotspot.label}
-            />
-          ))}
-          {activeSection === 'entry' && entryRotatorState !== 0 && <GateDial state={entryRotatorState} />}
         </div>
-        {activeSection === 'entry' && <InstructionPill />}
-        <AnimatePresence>
-          {worldTransition && <WorldTransitionOverlay transition={worldTransition} />}
-        </AnimatePresence>
       </div>
       <motion.aside
         className={`scene-panel${bridgeOpen ? ' panel-parked' : ''}`}
