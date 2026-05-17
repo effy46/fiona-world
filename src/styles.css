@@ -457,6 +457,26 @@ button { font: inherit; }
   cursor: pointer;
 }
 
+/*
+ * Invisible click target — no visual marker, scene stays clean.
+ * Keeps the path interactive without UI overlay clutter.
+ */
+.hotspot-invisible {
+  position: absolute;
+  width: 7%;
+  height: 7%;
+  transform: translate(-50%, -50%);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 2;
+}
+.hotspot-invisible:focus-visible {
+  outline: 2px solid rgba(255, 250, 245, 0.6);
+  border-radius: 50%;
+}
+
 .hotspot::after {
   content: "";
   position: absolute;
