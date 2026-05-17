@@ -62,10 +62,13 @@ waypoints = [
     (70.2, 72.0, 1.0),  # entry-bridge-to-projects — far end
 ]
 
-FRAMES = 36              # total frames in the loop
-HOLD_FIRST = 4           # extra frames at start so the loop reads as "she pauses, then walks"
-HOLD_LAST = 5            # extra frames at end so the bridge view holds before looping
+FRAMES = 36              # forward walk frames
+HOLD_FIRST = 6           # frames at start before walking begins
+HOLD_LAST = 16           # ~1.8s hold on final frame after she arrives
 FRAME_DURATION_MS = 110  # ~9 fps; calm pacing
+# Loop strategy: play ONCE, then the browser holds the final frame.
+# (loop=1 below — set to 0 to make it loop infinitely.)
+WEBP_LOOP_COUNT = 1
 
 
 def lerp_waypoint(t: float) -> tuple[float, float, float]:
@@ -125,7 +128,7 @@ frames[0].save(
     save_all=True,
     append_images=frames[1:],
     duration=FRAME_DURATION_MS,
-    loop=0,
+    loop=WEBP_LOOP_COUNT,
     quality=82,
     method=6,  # slowest, best WebP compression
 )
