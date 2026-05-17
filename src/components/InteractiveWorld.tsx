@@ -28,7 +28,7 @@ type EdgeLine = {
 const routeForScene = (sceneId: SceneId) => portfolioSections.find((item) => item.id === sceneId)?.route ?? '/';
 
 const entranceWaypointId: Record<SceneId, string> = {
-  entry: 'entry-bridge-stand',
+  entry: 'entry-base',
   projects: 'projects-entrance',
   skills: 'skills-entrance',
   thoughts: 'thoughts-entrance',
@@ -43,6 +43,10 @@ const entryStateForScene: Partial<Record<SceneId, RotatorState>> = {
 
 function getWaypoint(id: string) {
   return sceneGraph.waypoints.find((point) => point.id === id);
+}
+
+function delay(ms: number) {
+  return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
 
 function getSceneEntrance(sceneId: SceneId) {
@@ -126,17 +130,36 @@ export function InteractiveWorld({ activeSection }: InteractiveWorldProps) {
     }
   };
 
-  const startProjectsPath = () => {
+  // Walk to a waypoint, return promise that resolves after the lerp completes.
+  const STEP_MS = 600;
+  const walkTo = async (waypointId: string) => {
+    const wp = getWaypoint(waypointId);
+    if (!wp) return;
+    setCharacterFacing('front');
+    moveCharacter({ waypointId: wp.id, x: wp.x, y: wp.y });
+    void playStep(audioEnabled);
+    await delay(STEP_MS);
+  };
+
+  const startProjectsPath = async () => {
     if (activeSection !== 'entry') {
       navigate('/projects');
       return;
     }
-    if (entryRotatorState !== 1) {
+    // Cinematic: walk Fiona along the path. State-0: base → stairs → mid → walkway end → red button.
+    // Then rotate. State-1: bridge appears, Fiona walks across to Projects portal.
+    if (entryRotatorState === 0) {
+      await walkTo('entry-stairs');
+      await walkTo('entry-platform-mid');
+      await walkTo('entry-walkway-end');
+      // Reach the button — trigger rotation.
       rotateEntry(1);
-      window.setTimeout(() => handleHotspot('entry-projects'), 720);
-      return;
+      await delay(700);
     }
-    handleHotspot('entry-projects');
+    await walkTo('entry-bridge-start');
+    await walkTo('entry-bridge-to-projects');
+    // Transition to Projects section.
+    crossToScene('projects', getWaypoint('entry-bridge-to-projects'));
   };
 
   return (
@@ -162,7 +185,7 @@ export function InteractiveWorld({ activeSection }: InteractiveWorldProps) {
             className={`character-marker facing-${characterFacing}`}
             initial={false}
             animate={{ left: `${characterPosition.x}%`, top: `${characterPosition.y}%` }}
-            transition={{ duration: 0.42, ease: 'easeOut' }}
+            transition={{ duration: 0.55, ease: 'easeInOut' }}
             aria-hidden="true"
           >
             <img
