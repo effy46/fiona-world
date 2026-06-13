@@ -243,21 +243,23 @@ def catmull_rom(ctrl, samples=40):
 
 
 def build_temple(side):
-    """Thin temple: runs gently back near hinge height, then hooks down at
-    the ear end. Stays close to straight in top view (slight open angle)."""
+    """FOLDED (closed) temple: folds in at the hinge and lies across the back
+    of the front frame toward the opposite side, near the top, with the ear
+    end curling down. The two temples sit at slightly different depths so they
+    stack rather than intersect (right in front, left just behind)."""
     hinge = _outline_point(side, 32 if side > 0 else 148)
-    start = hinge + np.array([side * 0.02, 0.0, RIM_DEPTH * 0.5])
+    hy = hinge[1]
     sx = side
-    ox = LENS_CX + RX  # outer reference x
+    zf = 0.72 if side > 0 else 1.02   # folding depth: right in front, left behind
     pts = [
-        start,
-        np.array([sx * (ox + 0.05), 1.55, 1.8]),
-        np.array([sx * (ox + 0.10), 1.25, 4.2]),
-        np.array([sx * (ox + 0.05), 0.85, 7.0]),  # mostly straight, gentle drop
-        np.array([sx * (ox - 0.05), 0.30, 9.4]),
-        np.array([sx * (ox - 0.12), -0.55, 11.0]),  # ear hook starts down
-        np.array([sx * (ox - 0.18), -1.45, 11.9]),
-        np.array([sx * (ox - 0.22), -2.25, 12.1]),  # rounded tip
+        hinge + np.array([0.0, 0.0, RIM_DEPTH * 0.4]),     # at the hinge
+        np.array([sx * 4.7, hy + 0.05, zf * 0.82]),        # folds inward, behind frame
+        np.array([sx * 2.4, hy - 0.02, zf]),               # runs across, near the top
+        np.array([0.0, hy - 0.18, zf]),
+        np.array([-sx * 2.6, hy - 0.40, zf]),
+        np.array([-sx * 4.2, hy - 0.70, zf * 0.98]),       # nearing far side, ear hook
+        np.array([-sx * 4.9, hy - 1.35, zf * 0.94]),       # curls down
+        np.array([-sx * 5.2, hy - 2.05, zf * 0.90]),       # rounded tip
     ]
     path = catmull_rom(np.array(pts), samples=16)
     prof = rounded_rect_profile(0.22, 0.33, 0.10)  # slim, taller than wide
