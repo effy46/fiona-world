@@ -57,9 +57,9 @@ def render(tris, cols, R, title, path, light=(0.35, 0.55, 0.75)):
     n = np.cross(t[:, 1] - t[:, 0], t[:, 2] - t[:, 0])
     ln = np.linalg.norm(n, axis=1, keepdims=True); ln[ln == 0] = 1
     shade = np.clip(np.abs((n / ln) @ light), 0.2, 1.0) * 0.65 + 0.35
-    order = np.argsort(t[:, :, 2].mean(axis=1))   # camera at +Z, far drawn first
-    # screen X = -model X so the +Z (engraved) side reads un-mirrored
-    polys = [np.column_stack([-t[i][:, 0], t[i][:, 1]]) for i in order]
+    # standard front camera: looks along -Z (+X right, +Y up). Far drawn first.
+    order = np.argsort(t[:, :, 2].mean(axis=1))
+    polys = [t[i][:, :2] for i in order]
     fc = [np.clip(cols[i] * shade[i], 0, 1) for i in order]
     fig, ax = plt.subplots(figsize=(5, 6), dpi=130)
     ax.add_collection(PolyCollection(polys, facecolors=fc, edgecolors="none"))

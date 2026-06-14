@@ -31,10 +31,10 @@ FONT_DIR = "/usr/local/lib/python3.11/dist-packages/matplotlib/mpl-data/fonts/tt
 # plate geometry
 # --------------------------------------------------------------------------
 
-A = 0.70           # plate half width
-HS = 1.18          # shoulder height (where the arch springs)
-RISE = 0.30        # arch rise above the shoulders
-ARCH_HALF = 0.42   # half-width of the central arch span
+A = 0.72           # plate half width
+HS = 1.04          # shoulder height (where the arch springs)
+RISE = 0.26        # arch rise above the shoulders
+ARCH_HALF = 0.44   # half-width of the central arch span
 T = 0.06           # plate thickness
 YMAX = HS + RISE
 
@@ -139,8 +139,8 @@ def mat_brass_dark():
 # build plate (brass body + engraved decal)
 # --------------------------------------------------------------------------
 
-TILT = np.deg2rad(20.0)          # plate leans back
-ATTACH = np.array([0.0, 0.62, 0.0])
+TILT = np.deg2rad(26.0)          # plate leans back
+ATTACH = np.array([0.0, 0.48, 0.0])
 
 
 def _plate_transform():
@@ -165,8 +165,9 @@ def build_plate():
     v2d = v3[:, :2]
     z = T / 2.0 + 0.002
     verts = np.column_stack([v2d[:, 0], v2d[:, 1], np.full(len(v2d), z)])
-    # u runs along -x so the lettering reads correctly from the +Z (front) side
-    uv = np.column_stack([(A - v2d[:, 0]) / (2 * A),
+    # standard mapping: +u along +x, +v downward (glTF). Reads correctly when
+    # the engraved +Z face is viewed from the front (+Z, +X to the right).
+    uv = np.column_stack([(v2d[:, 0] + A) / (2 * A),
                           (YMAX - v2d[:, 1]) / YMAX])
     decal = trimesh.Trimesh(verts, f2d, process=False)
     decal.apply_transform(M)
@@ -183,41 +184,40 @@ def build_plate():
 # clip body + pivot bosses
 # --------------------------------------------------------------------------
 
-PIVOT_Y = 0.55
-BODY_W = 0.62
+PIVOT_Y = 0.40
+BODY_W = 0.52
+
+
+def _xcyl(radius, height, x, y, z=0.0, sections=28):
+    c = trimesh.creation.cylinder(radius=radius, height=height, sections=sections)
+    c.apply_transform(trimesh.transformations.rotation_matrix(np.pi / 2, [0, 1, 0]))
+    c.apply_translation([x, y, z])
+    return c
+
+
+def _zcyl(radius, height, x, y, z, sections=24):
+    c = trimesh.creation.cylinder(radius=radius, height=height, sections=sections)
+    c.apply_translation([x, y, z])
+    return c
 
 
 def build_clip_body():
     parts = []
-    # rounded channel that grips the plate bottom (extruded along X)
-    sec = Polygon([(-0.18, 0.40), (0.18, 0.40), (0.20, 0.55),
-                   (0.16, 0.70), (-0.16, 0.70), (-0.20, 0.55)])  # (z,y) profile
+    # compact bracket that grips the plate bottom (extruded along X)
+    sec = Polygon([(-0.17, 0.26), (0.17, 0.26), (0.19, 0.39),
+                   (0.15, 0.54), (-0.15, 0.54), (-0.19, 0.39)])  # (z,y) profile
     body = trimesh.creation.extrude_polygon(sec, BODY_W)
-    # extrude_polygon extrudes the (x,y)=(z,y) plane along +Z(world); remap axes
-    body.vertices = body.vertices[:, [2, 1, 0]]      # (z,y,x)->(x,y,z): swap
+    body.vertices = body.vertices[:, [2, 1, 0]]      # (z,y,x)->(x,y,z)
     body.apply_translation([-BODY_W / 2.0, 0, 0])
     parts.append(body)
 
-    # pivot axle through the body
-    axle = trimesh.creation.cylinder(radius=0.085, height=BODY_W + 0.16,
-                                     sections=24)
-    axle.apply_transform(trimesh.transformations.rotation_matrix(
-        np.pi / 2, [0, 1, 0]))
-    axle.apply_translation([0, PIVOT_Y, 0])
-    parts.append(axle)
-
-    # round rivet bosses on each side, each with a small centre pin
-    for sx in (-1, 1):
-        boss = trimesh.creation.cylinder(radius=0.165, height=0.07, sections=32)
-        boss.apply_transform(trimesh.transformations.rotation_matrix(
-            np.pi / 2, [0, 1, 0]))
-        boss.apply_translation([sx * (BODY_W / 2 + 0.06), PIVOT_Y, 0])
-        parts.append(boss)
-        pin = trimesh.creation.cylinder(radius=0.045, height=0.10, sections=16)
-        pin.apply_transform(trimesh.transformations.rotation_matrix(
-            np.pi / 2, [0, 1, 0]))
-        pin.apply_translation([sx * (BODY_W / 2 + 0.08), PIVOT_Y, 0])
-        parts.append(pin)
+    parts.append(_xcyl(0.07, BODY_W + 0.14, 0, PIVOT_Y))   # pivot axle
+    for sx in (-1, 1):                                      # side rivet bosses
+        parts.append(_xcyl(0.15, 0.06, sx * (BODY_W / 2 + 0.05), PIVOT_Y, sections=32))
+        parts.append(_xcyl(0.042, 0.09, sx * (BODY_W / 2 + 0.07), PIVOT_Y))
+    # small decorative rivets on the front/back faces of the body
+    parts.append(_zcyl(0.06, 0.05, 0, 0.40, -0.19))
+    parts.append(_zcyl(0.06, 0.05, 0, 0.40, 0.19))
     return parts
 
 
@@ -231,29 +231,31 @@ def _flat_profile(width, thick):
 
 
 def build_handle(zsign):
-    """One handle: foot -> up to pivot -> across -> down to far foot.
-    zsign = -1 front handle, +1 back handle."""
-    foot_z = zsign * 0.92
-    loop_z = zsign * 0.10
-    fy = 0.045          # foot height off the ground
+    """One folded binder-clip handle: a narrow flat U that drops from the pivot
+    to two feet, splaying mostly front/back (compact in X) so the front view
+    stays plate-dominant. zsign = -1 front handle, +1 back handle."""
+    foot_z = zsign * 0.56       # short, low stance
+    loop_z = zsign * 0.07
+    fx_out = 0.52               # feet land near the plate's bottom corners
+    fy = 0.035                  # foot height off the ground
     pts = [
-        (-0.40, fy, foot_z),
-        (-0.34, 0.30, foot_z * 0.55),
-        (-0.27, PIVOT_Y, loop_z),
-        (0.0, PIVOT_Y + 0.05, loop_z * 0.7),   # loop apex near the pivot
-        (0.27, PIVOT_Y, loop_z),
-        (0.34, 0.30, foot_z * 0.55),
-        (0.40, fy, foot_z),
+        (-fx_out, fy, foot_z),
+        (-0.30, 0.20, foot_z * 0.6),
+        (-0.13, PIVOT_Y, loop_z),
+        (0.0, PIVOT_Y + 0.04, loop_z * 0.6),   # loop apex over the pivot
+        (0.13, PIVOT_Y, loop_z),
+        (0.30, 0.20, foot_z * 0.6),
+        (fx_out, fy, foot_z),
     ]
     path = catmull_rom(np.array(pts), samples=16)
-    prof = _flat_profile(0.17, 0.05)
+    prof = _flat_profile(0.15, 0.045)
     v, f = sweep_ptf(path, prof, cap=True, up_hint=(0, 0, zsign))
     arm = trimesh.Trimesh(v, f, process=False)
 
     feet = []
-    for fx in (-0.40, 0.40):
-        foot = trimesh.creation.icosphere(subdivisions=2, radius=0.085)
-        foot.apply_scale([1.25, 0.7, 1.5])
+    for fx in (-fx_out, fx_out):
+        foot = trimesh.creation.icosphere(subdivisions=2, radius=0.07)
+        foot.apply_scale([1.2, 0.6, 1.5])
         foot.apply_translation([fx, fy, foot_z])
         feet.append(foot)
     return [arm] + feet
