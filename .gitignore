@@ -145,3 +145,6 @@ vite.config.ts.timestamp-*
 # Python
 __pycache__/
 *.pyc
+
+# build artifact (engraving texture is embedded into the glb)
+tools/_plate_tex.png

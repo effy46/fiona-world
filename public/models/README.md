@@ -1,3 +1,35 @@
+# 3D models
+
+Two procedurally-built, web-ready models live here: `glasses.glb` and
+`clip_stand.glb`. Both are generated from reference photos with the scripts in
+`tools/` (no Blender required) — see the per-model sections below.
+
+---
+
+# Clip stand 3D model
+
+`clip_stand.glb` — the TRAVELER'S COMPANY brass clip stand: an engraved arched
+brass nameplate held by a folding binder-clip-style easel.
+
+## What it contains
+
+| Part | Material | Notes |
+|------|----------|-------|
+| Nameplate | brass + engraved decal | arched "signboard" shape; front carries the TRAVELER'S engraving (border + lettering) as an embedded texture |
+| Clip body | dark brass | rounded channel gripping the plate's bottom edge |
+| Pivot bosses (×2) | dark brass | round side rivets with centre pins |
+| Handle-arms (×2) | brass | flat straps folded down into a 4-footed easel stand |
+
+- glTF Y-up; the engraving faces `+Z`, the four feet rest on `y = 0`, and the
+  plate leans back ~20°.
+- 14 geometries, ~23k triangles, 4 PBR materials, one embedded PNG texture,
+  ~500 KB. The engraving is a self-contained texture (no external files).
+- Regenerate with `python tools/build_clip_stand.py`; preview with
+  `python tools/render_clip.py`. The engraving image is rendered by
+  `make_plate_texture()` and embedded into the GLB on export.
+
+---
+
 # Glasses 3D model
 
 `glasses.glb` — a shape-accurate model of the reference black full-rim
