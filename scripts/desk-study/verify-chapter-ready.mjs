@@ -1,0 +1,12 @@
+import {chromium} from 'playwright';import assert from 'node:assert/strict';import {mkdir,writeFile} from 'node:fs/promises';
+const out='output/playwright/chapter-ready';await mkdir(out,{recursive:true});const b=await chromium.launch({channel:'chrome'});const p=await b.newPage({viewport:{width:1200,height:900}});const errors=[],timings=[];p.on('pageerror',e=>errors.push(e.message));
+await p.route('**/*',async route=>{if(/\/(slow-post\/(autumn-maple|forest-backdrop|sign-painted-oak|models\/)|fonts\/Caveat-Medium|cat-sprites\/front3q)/.test(route.request().url()))await new Promise(resolve=>setTimeout(resolve,200));await route.continue();});
+try{
+ await p.goto('http://127.0.0.1:5201/?v=chapter-ready');await p.locator('[data-loaded="true"]').waitFor({timeout:45000});await p.getByRole('button',{name:'Open notebook',exact:true}).click();await p.locator('[data-ready="true"]').waitFor({timeout:20000});await p.waitForTimeout(3000);
+ for(const [chapter,actor] of [['Making','Walk with desert cat'],['Contact','Walk with station cat']]){
+  await p.evaluate(()=>{window.__chapterReady={fallbackMs:0,since:null};window.__chapterWatch=new MutationObserver(()=>{const m=window.__chapterReady;if(document.querySelector('.study-unfolding')){if(m.since===null)m.since=performance.now();}else if(m.since!==null){m.fallbackMs+=performance.now()-m.since;m.since=null;}});window.__chapterWatch.observe(document.body,{childList:true,subtree:true});});
+  await p.locator('.study-chapters').getByRole('button',{name:chapter,exact:true}).click();await p.locator(`[data-spread="${chapter.toLowerCase()}"][data-turning="false"]`).waitFor({timeout:15000});const endTurn=Date.now();await p.locator(`[aria-label="${actor}"][data-moving="false"]`).waitFor({timeout:15000});const afterTurnMs=Date.now()-endTurn;const metrics=await p.evaluate(()=>{window.__chapterWatch.disconnect();return window.__chapterReady;});timings.push({chapter,afterTurnMs,fallbackMs:Math.round(metrics.fallbackMs)});await p.waitForTimeout(400);await p.screenshot({path:`${out}/${chapter.toLowerCase()}-${process.argv.includes('--assert-fast')?'after':'before'}.png`});
+ }
+ if(process.argv.includes('--assert-fast'))for(const result of timings)assert(result.afterTurnMs<350,`${result.chapter} still waits ${result.afterTurnMs}ms after turn`);
+}catch(e){errors.push(e.message);}
+await b.close();await writeFile(`${out}/${process.argv.includes('--assert-fast')?'after':'before'}.json`,JSON.stringify({timings,errors},null,2));console.log(JSON.stringify({timings,errors}));if(errors.length)process.exitCode=1;
