@@ -1,4 +1,2 @@
 User-agent: *
 Allow: /
-
-Sitemap: https://ffeng.github.io/fiona-world/sitemap.xml

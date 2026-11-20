@@ -1,0 +1,22 @@
+{
+  "source": "assets/desk-study/desk-study.blend",
+  "generator": "scripts/desk-study/build_scene.py",
+  "blender": "5.1.2",
+  "meshes": 88,
+  "glb_bytes": 18883388,
+  "runtime_nodes": [
+    "PageLeft",
+    "PageRight",
+    "TurningLeaf",
+    "PaperWorld",
+    "StartTab",
+    "MakingTab",
+    "ProjectsTab",
+    "ContactTab"
+  ],
+  "props": [
+    "CeramicCup",
+    "FountainPen",
+    "BrassStamp"
+  ]
+}

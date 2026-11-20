@@ -9,3 +9,20 @@ dist/
 !.env.example
 references/
 docs/
+
+# Local review output and machine settings
+output/
+.playwright-cli/
+.claude/settings.local.json
+.claude/*.bak.*
+.codex/
+.impeccable/live/
+__pycache__/
+*.pyc
+*.blend[0-9]*
+
+# Agent-specific local tools; shared project rules live in CLAUDE.md
+.agents/
+.claude/
+.cursor/
+.impeccable/

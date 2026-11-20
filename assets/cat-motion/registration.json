@@ -1,0 +1,252 @@
+{
+  "sources": [
+    "assets/cat-motion/generated-sheet-v1.png",
+    "assets/cat-motion/generated-walk-stop-v3-arms.png"
+  ],
+  "cell": [
+    384,
+    384
+  ],
+  "frames": [
+    {
+      "frame": 0,
+      "source": "generated-sheet-v1.png",
+      "source_cell": 0,
+      "shift": [
+        -34,
+        17
+      ],
+      "source_bounds": [
+        124,
+        10,
+        328,
+        345
+      ]
+    },
+    {
+      "frame": 1,
+      "source": "generated-sheet-v1.png",
+      "source_cell": 1,
+      "shift": [
+        -12,
+        17
+      ],
+      "source_bounds": [
+        105,
+        10,
+        304,
+        345
+      ]
+    },
+    {
+      "frame": 2,
+      "source": "generated-sheet-v1.png",
+      "source_cell": 2,
+      "shift": [
+        -2,
+        17
+      ],
+      "source_bounds": [
+        99,
+        10,
+        287,
+        345
+      ]
+    },
+    {
+      "frame": 3,
+      "source": "generated-sheet-v1.png",
+      "source_cell": 3,
+      "shift": [
+        3,
+        18
+      ],
+      "source_bounds": [
+        94,
+        9,
+        279,
+        344
+      ]
+    },
+    {
+      "frame": 4,
+      "source": "generated-walk-stop-v3-arms.png",
+      "source_cell": 0,
+      "shift": [
+        -35,
+        19
+      ],
+      "source_bounds": [
+        138,
+        2,
+        314,
+        343
+      ]
+    },
+    {
+      "frame": 5,
+      "source": "generated-walk-stop-v3-arms.png",
+      "source_cell": 1,
+      "shift": [
+        25,
+        16
+      ],
+      "source_bounds": [
+        79,
+        2,
+        254,
+        346
+      ]
+    },
+    {
+      "frame": 6,
+      "source": "generated-walk-stop-v3-arms.png",
+      "source_cell": 2,
+      "shift": [
+        25,
+        17
+      ],
+      "source_bounds": [
+        79,
+        2,
+        254,
+        345
+      ]
+    },
+    {
+      "frame": 7,
+      "source": "generated-walk-stop-v3-arms.png",
+      "source_cell": 3,
+      "shift": [
+        25,
+        17
+      ],
+      "source_bounds": [
+        79,
+        3,
+        254,
+        345
+      ]
+    },
+    {
+      "frame": 8,
+      "source": "generated-walk-stop-v3-arms.png",
+      "source_cell": 4,
+      "shift": [
+        -35,
+        18
+      ],
+      "source_bounds": [
+        138,
+        3,
+        314,
+        344
+      ]
+    },
+    {
+      "frame": 9,
+      "source": "generated-walk-stop-v3-arms.png",
+      "source_cell": 5,
+      "shift": [
+        25,
+        18
+      ],
+      "source_bounds": [
+        78,
+        4,
+        254,
+        344
+      ]
+    },
+    {
+      "frame": 10,
+      "source": "generated-walk-stop-v3-arms.png",
+      "source_cell": 6,
+      "shift": [
+        25,
+        18
+      ],
+      "source_bounds": [
+        79,
+        3,
+        254,
+        344
+      ]
+    },
+    {
+      "frame": 11,
+      "source": "generated-walk-stop-v3-arms.png",
+      "source_cell": 7,
+      "shift": [
+        25,
+        22
+      ],
+      "source_bounds": [
+        78,
+        4,
+        254,
+        340
+      ]
+    },
+    {
+      "frame": 12,
+      "source": "generated-walk-stop-v3-arms.png",
+      "source_cell": 8,
+      "shift": [
+        -35,
+        21
+      ],
+      "source_bounds": [
+        138,
+        4,
+        314,
+        341
+      ]
+    },
+    {
+      "frame": 13,
+      "source": "generated-walk-stop-v3-arms.png",
+      "source_cell": 9,
+      "shift": [
+        25,
+        21
+      ],
+      "source_bounds": [
+        79,
+        4,
+        254,
+        341
+      ]
+    },
+    {
+      "frame": 14,
+      "source": "generated-walk-stop-v3-arms.png",
+      "source_cell": 10,
+      "shift": [
+        25,
+        19
+      ],
+      "source_bounds": [
+        79,
+        3,
+        254,
+        343
+      ]
+    },
+    {
+      "frame": 15,
+      "source": "generated-walk-stop-v3-arms.png",
+      "source_cell": 11,
+      "shift": [
+        25,
+        19
+      ],
+      "source_bounds": [
+        79,
+        4,
+        254,
+        343
+      ]
+    }
+  ]
+}
