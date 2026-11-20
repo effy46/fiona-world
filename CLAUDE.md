@@ -1,57 +1,52 @@
-# Fiona World — Agent Continuation Notes
+# Fiona World — Agent Instructions
 
-This project is in **planning / design interview mode**. Do NOT implement code unless Fiona explicitly asks. The website is being redesigned from a Monument Valley static-illustration direction (v5) to a Fiona's Traveler's Notebook explorable 3D site (v6).
+Current direction: Fiona’s Traveler’s Notebook — warm writer desk, paper-craft scenes and a cream/white cat with green scarf and postal bag. Default to Chinese. UI is English-only. Implement authorized work; discuss new design choices one concrete question at a time. No commits or pushes unless Fiona explicitly asks.
 
-## Read These First (in order) Before Responding
+## Current source of truth — 2026-11-20
 
-1. `docs/notebook-studio-redesign-notes.md` — canonical decisions + open questions
-2. `docs/next-agent-handoff.md` — Codex's previous handoff with hard instructions
-3. `docs/claude-session-handoff-2026-05-29.md` — Claude's last session handoff
+Fiona selected the integrated notebook as the final website and authorized removing old prototypes/assets. `index.html` is the only HTML entry; `/` loads `src/notebook/desk-study/main.tsx`. The former `/desk-study.html` compatibility entry has been removed. The old root app, standalone routes and `cat-lab/` sandbox are retired; do not restore them from historical handoffs.
 
-If any of those files exist and you have not read them in this session, read them before asking Fiona anything. The decisions are the source of truth; do not re-litigate settled items.
+- Runtime: `src/notebook/desk-study/`, `src/notebook/scenes/`, shared `WriterDeskProps.tsx`, `DeskProps.tsx` (candle/steam only), `CameraStillLife.tsx`, `NotebookOpening.tsx`, `catMotion.ts`.
+- Runtime assets: `public/`. Editable Blender files, generator textures and animation originals: `assets/`.
+- Asset URLs loaded at runtime use `src/lib/publicAsset.ts` so GitHub Pages `/fiona-world/` works. CSS public URLs are handled by Vite.
+- One fixed writer desk on all spreads; only notebook contents change. Preserve approved opening, cat-push page turns, chapter navigation, reduced motion and visit-local postmark progress.
+- No employer/internal work details on the public site. Personal projects such as PawPal are allowed. Résumé remains pending; do not expose placeholder PDFs.
+- Keep existing dirty work. Branch: `v5-2d-rebuild`. Do not stage, commit or push without explicit authorization.
+- `references/`, `docs/`, generated `output/`, local settings and caches are ignored. Existing tracked planning docs remain tracked; do not broadly stage private references.
+- Previous mailbox and handoffs describe historical work. Read them for context; current user instructions and this entry decision take precedence. Update planning documentation after behavior changes.
 
-## Current State (snapshot — verify against canonical doc)
+## Read for current detail
 
-- World concept: Fiona's Traveler's Notebook (warm desk, half-open notebook, cat guide)
-- Tech direction: React + React Three Fiber + Drei, paper-craft 2.5D, flat-plane hinge page rotation
-- Visual model: two camera modes (Page view top-down + Pop-up view local 3D)
-- Interaction: semi-automatic guided exploration. User clicks; cat walks and acts
-- Cat: cream/white, green scarf, postal bag, "Traveler + Stamp Clerk" blend. Voice English-only, philosophical-absurd short lines
-- Constraint: do NOT put concrete work content on the site. Site itself is the portfolio
+1. `docs/pre-publish-cleanup-2026-11-20.md` — cleanup scope, preserved sources and verification.
+2. `docs/unified-notebook-tabs-2026-11-16.md` — integrated chapter behavior; its old independent-sample ownership section is superseded by the cleanup note.
+3. `docs/desert-detour.md` — approved airmail visuals and interaction.
+4. `docs/writer-desk-redesign.md`, `docs/camera-still-life.md` — shared props and materials. Historical root/standalone staging is superseded by integrated source coordinates.
 
-## Pending Fiona Confirms (left over from 2026-05-29 session)
+## Verification
 
-1. UI language: site UI English-only, resume PDF EN+CN, cat voice EN?
-2. Page turn mechanic: cat-pushes-page default + stamp-teleport unlock after page completion?
+Before notebook edits: `node scripts/check-notebook-drift.mjs` (checks the canonical entry; old duplicate sandbox is gone).
 
-Get these confirmed first. Then proceed to: first page layout → cat final design → stamp rules.
+- `npm run build` — TypeScript and production bundle.
+- `GITHUB_PAGES=true npm run build` — deployment subdirectory bundle.
+- `npm run dev` — port 5201.
+- `node scripts/desk-study/verify-chapters.mjs`, `node scripts/desk-study/verify-airmail.mjs` — existing browser regression checks. Save captures in ignored `output/playwright/`.
+- Inspect the live app visually. Build success alone does not verify interaction or asset loading.
 
-## Interview Style (mandatory)
+## Rendering conventions
 
-Use Grill Me cadence — one decision per turn:
-
-```
-Current read: [one sentence summary of where we are]
-Question: [one concrete branch question]
-Recommended answer: [your pick + brief reason]
-```
-
-Do NOT push back into page count or schedule discussion. Fiona explicitly wants "protect feeling first, scope later".
+Paper decals use transparent materials with depthWrite false and polygonOffset -2/-2; Drei Text uses depthOffset -4. Separate stacked layers slightly. RoundedBox radius stays smaller than half its thickness. Avoid regular procedural grids; use irregular texture grain and anisotropy. Preserve shared scene geometry, cat scale and material behavior during cleanup.
 
 ## Chinese Style Rules (mandatory — Fiona corrected violations multiple times)
+
+Canonical full guide = the global `no-doom-language` memory (banned words, 翻译腔 table, examples, rationale). That memory is NOT auto-loaded in this project's scope, so the safety-net subset is kept inline below — but edit the canonical memory as the master; this is a derived subset, not a second master.
 
 Default to Chinese. UI copy drafts can be English.
 
 **Banned words** (do not use): 必须 / 锁死 / 项目死 / 翻车 / 爆雷 / 致命 / 灾难 / build 会坏 / 撑不下来 / 不可接受 / 严重
 
-**No 翻译腔 (translation-ese)**:
-- "接住反馈" → 收到 / 认同 / 你说得对
-- "让我们" → 那 / 直接
-- "倒回去" → 回到
-- "好问题" → 直接答
-- "push back" → 我不同意
+**No 翻译腔 (translation-ese)** — full list in the canonical memory; the worst offenders: "接住反馈" → 收到 / 你说得对; "让我们" → 那 / 直接; "倒回去" → 回到; "好问题" → 直接答; "push back" → 我不同意.
 
-**No English verbs/adjectives mixed into Chinese sentences**. English fine for proper nouns / brand names / code paths / UI copy quotes. Specific replacements:
+**No English verbs/adjectives mixed into Chinese sentences**. English fine for proper nouns / brand names / code paths / UI copy quotes. Project-specific replacements:
 
 | Bad | Good |
 |---|---|
@@ -71,11 +66,3 @@ Brand/tool names stay English: Codex / Claude / Snowflake / dbt / Three.js / R3F
 **No emoji priority markers** (no 🚨⚠️🔧💡). Use text only: P0 阻塞 / P1 高风险 / P2 体验改进 / P3 说明.
 
 Format each issue as: 问题 / 影响 / 建议修改 / 验证方式. Stay neutral, concrete, executable.
-
-## Repo Conventions
-
-- Branch: `v5-2d-rebuild` (current redesign branch; ignore `main`)
-- `docs/` is in `.gitignore` but planning docs are force-tracked (`git add -f`). Subsequent edits do not show as modified — re-add explicitly if updating
-- `references/` is in `.gitignore` and stays untracked. Reference video and concept images live there
-- Do NOT commit or push unless Fiona asks. Per `feedback_codex_no_commit_push.md` convention from her other repos
-- Do NOT touch `src/` files; that is the v5 static-illustration codebase, not the redesign target
