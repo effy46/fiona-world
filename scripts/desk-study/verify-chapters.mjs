@@ -1,15 +1,12 @@
-import {chromium} from 'playwright';
-import {mkdir,writeFile} from 'node:fs/promises';
-const out='output/playwright/unified-chapters';await mkdir(out,{recursive:true});
-const b=await chromium.launch({channel:'chrome'});const page=await b.newPage({viewport:{width:1600,height:1100}});const errors=[],checks=[];
-page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});page.on('response',r=>{if(r.status()>=400)errors.push(`${r.status()} ${r.url()}`);});
+import {startNotebookCheck,openNotebook,selectChapter} from './notebook-browser.mjs';
+import {writeFile} from 'node:fs/promises';
+const out='output/playwright/unified-chapters';
+const {browser:b,page,errors}=await startNotebookCheck(out,{viewport:{width:1600,height:1100}});const checks=[];
 const chapter=name=>page.locator('.study-chapters').getByRole('button',{name,exact:true});
-async function ready(){await page.locator('[data-ready="true"]').waitFor({timeout:45000});}
-async function select(name,state=name.toLowerCase()){await chapter(name).click();await page.locator(`[data-spread="${state}"][data-turning="false"]`).waitFor({timeout:15000});await page.waitForTimeout(1900);}
+async function select(name,state=name.toLowerCase()){await selectChapter(page,name,state);await page.waitForTimeout(1900);}
 async function shot(name){await page.screenshot({path:`${out}/${name}.png`});}
 try{
- await page.goto(`${process.env.NOTEBOOK_URL ?? 'http://127.0.0.1:5201/'}?v=chapters`,{waitUntil:'domcontentloaded'});
- await page.locator('[data-loaded="true"]').waitFor({timeout:45000});await page.getByRole('button',{name:'Open notebook',exact:true}).click();await ready();await page.locator('[data-cat-phase="idle"]').waitFor({timeout:10000});await page.waitForTimeout(1400);await shot('01-start-desk');checks.push('single opening and shared writer desktop');
+ await openNotebook(page,'chapters');await page.locator('[data-cat-phase="idle"]').waitFor({timeout:10000});await page.waitForTimeout(1400);await shot('01-start-desk');checks.push('single opening and shared writer desktop');
  await select('Making');await shot('02-making');
  await page.getByRole('button',{name:'Explore the desert',exact:false}).click();await page.waitForTimeout(2100);await shot('03-desert');
  await page.locator('.study-actions').getByRole('button',{name:'Receive airmail',exact:true}).click();await page.locator('[data-desert-state="collected"]').waitFor({timeout:18000});await shot('04-balloon-collected');checks.push('Making desert, approved cat and airmail delivery');

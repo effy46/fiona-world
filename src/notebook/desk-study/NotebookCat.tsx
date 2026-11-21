@@ -8,8 +8,9 @@ import {NOTEBOOK_SCALE,NOTEBOOK_CAT_SIZE} from './layout';
 import {catTurnDuration,catTurnPose,catWalkFrame,catSettleFrame,CAT_SETTLE_SECONDS,CAT_REST_FRAME} from '../catMotion';
 import {useCatAtlas,setCatAtlasPose} from '../useCatAtlas';
 
+import {pathLength,pointAtDistance} from '../pathMotion';
 export type CatPhase='idle'|'turn'|'walk'|'settle'|'jump'|'sit'|'sleep';
-type Journey={started:number|null;path:THREE.Vector3[];length:number;duration:number;mirrored:boolean;fromMirrored:boolean;fromFrame:number;toChair:boolean};
+type Journey={started:number|null;path:CampPoint[];length:number;duration:number;mirrored:boolean;fromMirrored:boolean;fromFrame:number;toChair:boolean};
 type Hop={started:number|null;from:THREE.Vector3;to:THREE.Vector3;up:boolean;goal:CampPoint|null};
 const home=new THREE.Vector3(.78,.465,.61);
 const clearing:CampPoint=[.76,.37];
@@ -64,16 +65,16 @@ export function NotebookCat({visible,reduced,request,destination,origin,chairSea
   }
   function startWalk(goal:CampPoint,toChair:boolean){
     rest('ground');const from=root.current.position;
-    const path=planCampRoute([from.x,from.z],goal,origin).map(([x,z])=>new THREE.Vector3(x,home.y,z));
-    let length=0;for(let i=1;i<path.length;i++)length+=path[i-1].distanceTo(path[i]);
-    const target=path[path.length-1],mirrored=Math.abs(target.x-from.x)>.03?target.x>from.x:facing.current;
+    const path=planCampRoute([from.x,from.z],goal,origin);
+    const length=pathLength(path);
+    const target=path[path.length-1],mirrored=Math.abs(target[0]-from.x)>.03?target[0]>from.x:facing.current;
     if(reduced||length<.025){
-      from.copy(target);pose(CAT_REST_FRAME,mirrored);journey.current=null;marker.current.visible=false;
+      from.set(target[0],home.y,target[1]);pose(CAT_REST_FRAME,mirrored);journey.current=null;marker.current.visible=false;
       if(toChair){if(reduced){from.copy(chairSeat);rest('sit');report('sit');}else startHop(true);}
       else report('idle');
       invalidate();return;
     }
-    marker.current.position.set(target.x,home.y+.01,target.z);marker.current.visible=!toChair;
+    marker.current.position.set(target[0],home.y+.01,target[1]);marker.current.visible=!toChair;
     journey.current={started:null,path,length,duration:Math.max(.88,length/.65),mirrored,fromMirrored:facing.current,fromFrame:currentFrame.current,toChair};
     report('turn');invalidate();
   }
@@ -92,7 +93,7 @@ export function NotebookCat({visible,reduced,request,destination,origin,chairSea
     if(reduced){
       if(hop.current)finishHop();
       const current=journey.current;
-      if(current){journey.current=null;root.current.position.copy(current.path[current.path.length-1]);marker.current.visible=false;pose(CAT_REST_FRAME,current.mirrored);
+      if(current){journey.current=null;root.current.position.set(current.path.at(-1)![0],home.y,current.path.at(-1)![1]);marker.current.visible=false;pose(CAT_REST_FRAME,current.mirrored);
         if(current.toChair){root.current.position.copy(chairSeat);rest('sit');report('sit');}else report('idle');}
     }
     if(chairRequest!==consumedChair.current){
@@ -129,15 +130,13 @@ export function NotebookCat({visible,reduced,request,destination,origin,chairSea
         else{
           const travel=elapsed-turnDuration,walking=Math.min(1,travel/current.duration),settling=Math.max(0,Math.min(1,(travel-current.duration)/CAT_SETTLE_SECONDS));
           const mainTravel=current.duration/(current.duration+.28);
-          let distance=current.length*(mainTravel*walking+(1-mainTravel)*(1-(1-settling)**2));
-          for(let i=1;i<current.path.length;i++){
-            const a=current.path[i-1],b=current.path[i],length=a.distanceTo(b);
-            if(distance<=length||i===current.path.length-1){root.current.position.lerpVectors(a,b,Math.min(1,distance/length));break;}distance-=length;
-          }
+          const distance=current.length*(mainTravel*walking+(1-mainTravel)*(1-(1-settling)**2));
+          const [x,z]=pointAtDistance(current.path,distance);
+          root.current.position.set(x,home.y,z);
           if(travel<current.duration){report('walk');pose(catWalkFrame(travel),current.mirrored);}
           else{report('settle');pose(catSettleFrame(travel-current.duration),current.mirrored);}
           if(travel>=current.duration+CAT_SETTLE_SECONDS){
-            root.current.position.copy(current.path[current.path.length-1]);journey.current=null;marker.current.visible=false;
+            root.current.position.set(current.path.at(-1)![0],home.y,current.path.at(-1)![1]);journey.current=null;marker.current.visible=false;
             if(current.toChair)startHop(true);else report('idle');
           }
         }

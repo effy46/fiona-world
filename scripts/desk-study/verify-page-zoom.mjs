@@ -13,7 +13,7 @@ async function anchoredRightPage(spread){
  const end=await p.locator('#zoom-anchor').evaluate(el=>{const r=el.getBoundingClientRect();return {x:r.x,y:r.y};});const drift=Math.hypot(end.x-point.x,end.y-point.y);assert(drift<7,`${spread}: cursor anchor drifted ${drift}px`);await p.screenshot({path:`${out}/${spread}-pointer-right.png`});checks.push(`${spread}: right-page anchor drift ${drift.toFixed(2)}px, no camera rotation`);await p.keyboard.press('0');await zoom(0);
 }
 try{
- await p.goto('http://127.0.0.1:5201/?v=pointer-zoom');await p.locator('[data-loaded="true"]').waitFor({timeout:45000});await p.getByRole('button',{name:'Open notebook',exact:true}).click();await p.locator('[data-ready="true"]').waitFor({timeout:20000});await p.waitForTimeout(3400);
+ await p.goto(`${process.env.NOTEBOOK_URL ?? 'http://127.0.0.1:5201/'}?v=pointer-zoom`);await p.locator('[data-loaded="true"]').waitFor({timeout:45000});await p.getByRole('button',{name:'Open notebook',exact:true}).click();await p.locator('[data-ready="true"]').waitFor({timeout:20000});await p.waitForTimeout(3400);
  for(const spread of ['start','making','making-notes','projects','contact']){
   if(spread!=='start')await select(spread);const before=await width(spread),cameraBefore=await cameraFromHtml(p,1200,900,selector(spread));
   for(let i=0;i<4;i++)await wheel(-300);await zoom(1);const after=await width(spread),cameraAfter=await cameraFromHtml(p,1200,900,selector(spread));assert(after>before*1.1,`${spread}: zoom missing`);assert(cameraBefore.quaternion.angleTo(cameraAfter.quaternion)<.0002,`${spread}: view tilted`);await p.screenshot({path:`${out}/${spread}-close.png`});

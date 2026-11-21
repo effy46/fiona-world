@@ -7,9 +7,31 @@
     <link rel="icon" href="data:," />
     <meta name="description" content="Fiona Feng’s personal notebook: projects, making notes, and small paper journeys." />
     <title>Fiona Feng — Traveler’s Notebook</title>
+    <link rel="stylesheet" href="/src/notebook/loading.css" />
   </head>
   <body>
+    <div id="notebook-loading" class="notebook-loading" data-state="loading" role="status" aria-live="polite">
+      <div class="notebook-loading__content">
+        <span class="notebook-loading__eyebrow" aria-hidden="true">FIONA’S LITTLE WORLD</span>
+        <div class="notebook-loading__illustration" aria-hidden="true">
+          <img src="/cat-sprites/loading.png" alt="" width="119" height="240" fetchpriority="high" />
+          <span class="notebook-loading__ground"></span>
+        </div>
+        <p class="notebook-loading__title">Packing a little world for you…</p>
+        <p class="notebook-loading__copy">Your first visit may take a little longer.<br />Thanks for waiting.</p>
+        <span class="notebook-loading__dots" aria-hidden="true"><i></i><i></i><i></i></span>
+      </div>
+    </div>
+    <noscript><style>#notebook-loading { display: none; }</style><p>This notebook needs JavaScript to open. Please enable it and reload.</p></noscript>
     <div id="root"></div>
+    <script>
+      window.setTimeout(() => {
+        const loader = document.getElementById('notebook-loading');
+        if (loader.dataset.state === 'loading') {
+          loader.querySelector('.notebook-loading__copy').textContent = 'Still getting things ready. Your notebook will open shortly.';
+        }
+      }, 8000);
+    </script>
     <script type="module" src="/src/notebook/desk-study/main.tsx"></script>
   </body>
 </html>

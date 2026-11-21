@@ -1,5 +1,5 @@
 import { publicAsset } from '../../lib/publicAsset';
-import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Component, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, Text, Environment, Lightformer, OrbitControls, useGLTF } from '@react-three/drei';
@@ -12,9 +12,9 @@ import { CampSmoke } from './CampSmoke';
 import {PageInk} from './PageInk';
 import {makePageMaterial,applyPageArtwork} from './pageMaterial';
 import {NOTEBOOK_SCALE} from './layout';
-import {passportStamps} from './pageLayout';
+import {passportStamps,pageToWorld,PAGE_DISTANCE_FACTOR,type PageSide} from './pageLayout';
 import {WriterDeskProps} from '../WriterDeskProps';
-import {ChapterInsert,ChapterPreload,PageLinks,type TravelActions} from './ChapterContent';
+import {ChapterInsert,ChapterLoading,ChapterPending,ChapterPreload,PageLinks,type TravelActions} from './ChapterContent';
 import type {Journey} from '../scenes/DesertScene';
 import type {PostState} from '../scenes/StationScene';
 import { NotebookCat, type CatPhase } from './NotebookCat';
@@ -25,7 +25,6 @@ import {PAGE_FONTS} from './typography';
 import './study.css';
 
 type View = 'desk' | 'read' | 'world';
-type PageSide = 'left' | 'right';
 type Turn = { from: Spread; to: Spread; id: number };
 
 class StudyBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
@@ -82,6 +81,12 @@ function CameraDirector({view,readSide,reduced,controls,entry,spread,turn,resetT
     const surface=gl.domElement.closest<HTMLElement>('.study-canvas');
     const orbit=controls.current;
     if(!surface||!orbit||entry!=='open'||turn)return;
+    let pinchDistance=0;
+    const rotateEnabled=orbit.enableRotate;
+    const pointAt=(x:number,y:number)=>{
+      const rect=gl.domElement.getBoundingClientRect();
+      return new THREE.Vector2((x-rect.left)/rect.width*2-1,1-(y-rect.top)/rect.height*2);
+    };
     const beginOrbit=()=>{active.current=false;openingPush.current.done=true;};
     const changeZoom=(step:number,point:THREE.Vector2)=>{
       const orbit=controls.current;if(!orbit)return;
@@ -102,10 +107,29 @@ function CameraDirector({view,readSide,reduced,controls,entry,spread,turn,resetT
     };
     const wheel=(event:WheelEvent)=>{
       if(event.ctrlKey||event.metaKey)return;
-      event.preventDefault();const rect=gl.domElement.getBoundingClientRect();
-      const point=new THREE.Vector2((event.clientX-rect.left)/rect.width*2-1,1-(event.clientY-rect.top)/rect.height*2);
+      event.preventDefault();
       const pixels=event.deltaY*(event.deltaMode===1?16:event.deltaMode===2?size.height:1);
-      changeZoom(THREE.MathUtils.clamp(-pixels*.0018,-.25,.25),point);
+      changeZoom(THREE.MathUtils.clamp(-pixels*.0018,-.25,.25),pointAt(event.clientX,event.clientY));
+    };
+    const touchStart=(event:TouchEvent)=>{
+      if(event.touches.length!==2)return;
+      // Keep the single-finger orbit, but reserve two fingers for anchored zoom.
+      event.preventDefault();orbit.enableRotate=false;
+      const [first,second]=event.touches;
+      pinchDistance=Math.hypot(first.clientX-second.clientX,first.clientY-second.clientY);
+    };
+    const touchMove=(event:TouchEvent)=>{
+      if(event.touches.length!==2||!pinchDistance)return;
+      event.preventDefault();
+      const [first,second]=event.touches;
+      const distance=Math.hypot(first.clientX-second.clientX,first.clientY-second.clientY);
+      if(!distance)return;
+      const point=pointAt((first.clientX+second.clientX)/2,(first.clientY+second.clientY)/2);
+      changeZoom(Math.log2(distance/pinchDistance)/1.5,point);
+      pinchDistance=distance;
+    };
+    const touchEnd=()=>{
+      pinchDistance=0;orbit.enableRotate=rotateEnabled;
     };
     const key=(event:KeyboardEvent)=>{
       if(event.ctrlKey||event.metaKey)return;
@@ -113,7 +137,13 @@ function CameraDirector({view,readSide,reduced,controls,entry,spread,turn,resetT
       else if(['+','=','-'].includes(event.key)){event.preventDefault();changeZoom(event.key==='-'?-.2:.2,new THREE.Vector2());}
     };
     surface.addEventListener('wheel',wheel,{passive:false});window.addEventListener('keydown',key);orbit.addEventListener('start',beginOrbit);
-    return()=>{surface.removeEventListener('wheel',wheel);window.removeEventListener('keydown',key);orbit.removeEventListener('start',beginOrbit);};
+    surface.addEventListener('touchstart',touchStart,{passive:false});surface.addEventListener('touchmove',touchMove,{passive:false});
+    surface.addEventListener('touchend',touchEnd);surface.addEventListener('touchcancel',touchEnd);
+    return()=>{
+      surface.removeEventListener('wheel',wheel);window.removeEventListener('keydown',key);orbit.removeEventListener('start',beginOrbit);
+      surface.removeEventListener('touchstart',touchStart);surface.removeEventListener('touchmove',touchMove);
+      surface.removeEventListener('touchend',touchEnd);surface.removeEventListener('touchcancel',touchEnd);orbit.enableRotate=rotateEnabled;
+    };
   },[entry,turn,gl,camera,scene,controls,raycaster,size.height,onZoomChange,onReset,invalidate]);
   useFrame((_,dt)=>{
     if(!active.current||!controls.current)return;
@@ -142,7 +172,7 @@ function Passport({ visible, disabled, onStamp }: {
   const { size } = useThree();
   if (!visible) return null;
   return <group>{passportStamps.map(({label:chapter, x, y}) => <Html key={chapter} center
-    position={[-3.18 + x/1024*3.168, .445, y/1536*4.58-2.29]}
+    position={pageToWorld('left',x,y,.445)}
     zIndexRange={[1, 0]}>
     <button className="study-stamp-target" style={{width: size.width < 700 ? 60 : 76}}
       aria-label={`${chapter} passport stamp`} disabled={disabled}
@@ -153,12 +183,12 @@ function Passport({ visible, disabled, onStamp }: {
   </Html>)}</group>;
 }
 
-function DeskModel({ entry, canOpen, onOpen, onOpened, travel, pages, spread, turn, reduced, catRequest, catDestination, onCatPhase, onCatRequest, onReady, onTurned, onCampClick, onSelect, onPreviewImage, onStamp, passportVisible }: {
+function DeskModel({ entry, canOpen, onOpen, onOpened, travel, pages, spread, turn, reduced, catRequest, catDestination, onCatPhase, onCatRequest, onReady, onTurned, onCampClick, onSelect, onPreviewImage, onStamp, passportVisible, onChapterLoading }: {
   travel:TravelActions; entry: EntryPhase; canOpen: boolean; onOpen: () => void; onOpened: () => void;
   pages: Pages; spread: Spread; turn: Turn | null; reduced: boolean; catRequest: number; catDestination:CampPoint|null; onCatPhase: (phase: CatPhase) => void; onCatRequest: () => void;
   onReady: () => void; onTurned: (spread: Spread) => void;
   onCampClick: (point:CampPoint) => void; onSelect: (spread: Spread) => void; onPreviewImage: () => void;
-  onStamp: (chapter: StampChapter) => void; passportVisible: boolean;
+  onStamp: (chapter: StampChapter) => void; passportVisible: boolean; onChapterLoading:(spread:Spread|null)=>void;
 }) {
   const { scene: source } = useGLTF(publicAsset('/desk-study/desk-scene.glb'));
   const [turnHalf,setTurnHalf]=useState(false);
@@ -280,7 +310,7 @@ function DeskModel({ entry, canOpen, onOpen, onOpened, travel, pages, spread, tu
 
 
   useEffect(() => { onReady(); }, [onReady]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     applyPageArtwork(model.left.material,pages[leftSpread].left,entry!=='open'||coveredSide==='left');
     applyPageArtwork(model.right.material,pages[rightSpread].right,entry!=='open'||coveredSide==='right');
     invalidate();
@@ -388,9 +418,9 @@ function DeskModel({ entry, canOpen, onOpen, onOpened, travel, pages, spread, tu
       </Text>)}</Suspense>
       {entry==='open'&&<Suspense fallback={null}><PageInk pages={pages} leftSpread={leftSpread} rightSpread={rightSpread} hiddenSide={coveredSide}/></Suspense>}
       {entry==='open'&&spread==='contact'&&!turn&&<Suspense fallback={null}><ContactPortrait/></Suspense>}
-      {entry==='open'&&(spread==='making'||spread==='contact')&&<Suspense fallback={<Html position={[-1.6,.6,0]} center><span className="study-unfolding">Unfolding…</span></Html>}><ChapterInsert key={spread} spread={spread} travel={travel} reduced={reduced} turning={Boolean(turn)}/></Suspense>}
+      {entry==='open'&&(spread==='making'||spread==='contact')&&<Suspense key={spread} fallback={<ChapterPending spread={spread} onLoading={onChapterLoading}/>}><ChapterInsert spread={spread} travel={travel} reduced={reduced} turning={Boolean(turn)}/></Suspense>}
       {entry==='open'&&!turn&&<PageLinks spread={spread} travel={travel} onSelect={onSelect} onPreviewImage={onPreviewImage}/>}
-      {entry==='open'&&!turn&&nextSpread&&<Html transform center rotation={[-Math.PI/2,0,0]} position={[2.98,.48,2.08]} distanceFactor={3.168/1024*400} zIndexRange={[1,0]} style={{pointerEvents:'none'}}>
+      {entry==='open'&&!turn&&nextSpread&&<Html transform center rotation={[-Math.PI/2,0,0]} position={[2.98,.48,2.08]} distanceFactor={PAGE_DISTANCE_FACTOR} zIndexRange={[1,0]} style={{pointerEvents:'none'}}>
         <button className="study-page-corner" aria-label="Next page" onPointerDown={event=>event.stopPropagation()}
           onClick={event=>{event.stopPropagation();onSelect(nextSpread);}}/>
       </Html>}
@@ -416,12 +446,12 @@ function AmbientAnimation({active}:{active:boolean}) {
   return null;
 }
 
-function Scene({ entry, canOpen, onOpen, onOpened, travel, pages, spread, view, readSide, turn, reduced, resetToken, onZoomChange, onReset, catRequest, catDestination, onCatPhase, onCatRequest, onReady, onTurned, onCampClick, onSelect, onPreviewImage, onStamp, passportVisible }: {
+function Scene({ entry, canOpen, onOpen, onOpened, travel, pages, spread, view, readSide, turn, reduced, resetToken, onZoomChange, onReset, catRequest, catDestination, onCatPhase, onCatRequest, onReady, onTurned, onCampClick, onSelect, onPreviewImage, onStamp, passportVisible, onChapterLoading }: {
   travel:TravelActions; entry: EntryPhase; canOpen: boolean; onOpen: () => void; onOpened: () => void;
   resetToken:number;onZoomChange:(value:number)=>void;onReset:()=>void; pages: Pages; spread: Spread; view: View; readSide: PageSide; turn: Turn | null; reduced: boolean;
   catRequest: number; catDestination:CampPoint|null; onCatPhase: (phase: CatPhase) => void; onCatRequest: () => void;
   onReady: () => void; onTurned: (spread: Spread) => void; onCampClick: (point:CampPoint) => void; onSelect: (spread: Spread) => void; onPreviewImage: () => void;
-  onStamp: (chapter: StampChapter) => void; passportVisible: boolean;
+  onStamp: (chapter: StampChapter) => void; passportVisible: boolean; onChapterLoading:(spread:Spread|null)=>void;
 }) {
   const controls = useRef<OrbitControlsImpl>(null);
   return <Canvas frameloop="demand" dpr={[1, 2]} shadows="soft" camera={{ position: [1.5, 10.5, 9], fov: 37, near: .1, far: 200 }}
@@ -438,7 +468,7 @@ function Scene({ entry, canOpen, onOpen, onOpened, travel, pages, spread, view, 
         <Lightformer form="rect" intensity={2.5} color="#fff5df" position={[-4, 5, 2]} rotation={[0, -.5, -Math.PI / 4]} scale={[5, 7, 1]} />
         <Lightformer form="rect" intensity={.7} color="#d9e3ee" position={[4, 3, -4]} rotation={[0, Math.PI*.75, 0]} scale={[4, 5, 1]} />
       </Environment>
-      <DeskModel {...{ travel, entry, canOpen, onOpen, onOpened, pages, spread, turn, reduced, catRequest, catDestination, onCatPhase, onCatRequest, onReady, onTurned, onCampClick, onSelect, onPreviewImage, onStamp, passportVisible }} />
+      <DeskModel {...{ travel, entry, canOpen, onOpen, onOpened, pages, spread, turn, reduced, catRequest, catDestination, onCatPhase, onCatRequest, onReady, onTurned, onCampClick, onSelect, onPreviewImage, onStamp, passportVisible, onChapterLoading }} />
       {canOpen&&<ChapterPreload/>}
       <OrbitControls ref={controls} makeDefault enablePan={false} enableZoom={false} enableDamping
         minPolarAngle={.28} maxPolarAngle={1.25} minAzimuthAngle={-Math.PI/2} maxAzimuthAngle={Math.PI/2}
@@ -451,6 +481,7 @@ function Study() {
   const [pages, setPages] = useState<Pages | null>(null);
   const [failed, setFailed] = useState(false);
   const [previewImage,setPreviewImage]=useState(false);
+  const [loadingChapter,setLoadingChapter]=useState<Spread|null>(null);
   const [ready, setReady] = useState(false);
   const [entry,setEntry]=useState<EntryPhase>('closed');
   const [canOpen,setCanOpen]=useState(false);
@@ -506,14 +537,19 @@ function Study() {
     setCatRequest(value=>value+1);
   }
   useEffect(()=>{if(entry==='open')chapterButton.current?.focus({preventScroll:true});},[entry]);
+  const changeView=useCallback((next:View)=>{
+    setNotebookZoom(0);
+    setResetToken(value=>value+1);
+    setView(next);
+  },[]);
+  function defaultReadSide(next:Spread):PageSide{return next==='making'||next==='contact'?'right':'left';}
   function select(next: Spread) {
     if (!ready || entry!=='open' || turnLock.current || next === spread) return;
     turnLock.current = true;
     if(journey!=='collected')setJourney('ready');
     if(post!=='sent')setPost('ready');
-    setNotebookZoom(0);setResetToken(value=>value+1);
-    setReadSide(next==='making'||next==='contact'?'right':'left');
-    setView('desk');
+    setReadSide(defaultReadSide(next));
+    changeView('desk');
     setTurn({ from: spread, to: next, id: ++turnSequence.current });
   }
   function moveCat(point:CampPoint){
@@ -560,10 +596,9 @@ function Study() {
   };
 
   const returnToDesk=useCallback(()=>{
-    setNotebookZoom(0);setResetToken(value=>value+1);
     restoreFocus.current = true;
-    setView('desk');
-  },[]);
+    changeView('desk');
+  },[changeView]);
   useEffect(() => {
     if (view === 'desk' && restoreFocus.current) {
       (closerButton.current ?? document.querySelector<HTMLButtonElement>(`.study-chapters button[data-chapter="${chapterOf(spread)}"]`))?.focus({ preventScroll: true });
@@ -587,14 +622,15 @@ function Study() {
             {pages && <Scene {...{ entry, canOpen, travel, pages, spread, view, readSide, turn, reduced, resetToken }} onZoomChange={setNotebookZoom} onReset={returnToDesk} onReady={() => setReady(true)} onOpen={openBook} onOpened={finishEntry}
               catRequest={catRequest} catDestination={catDestination} onCatPhase={setCatPhase} onCatRequest={walkCat} onTurned={finishTurn}
               onCampClick={moveCat} onSelect={select} onPreviewImage={()=>setPreviewImage(true)}
-              onStamp={chooseStamp} passportVisible={view === 'desk' || (view === 'read' && readSide === 'left')} />}
+              onChapterLoading={setLoadingChapter} onStamp={chooseStamp} passportVisible={view === 'desk' || (view === 'read' && readSide === 'left')} />}
           </Suspense>
       </div>
       {previewImage&&<ImagePreview onClose={()=>setPreviewImage(false)}/>}
-      <NotebookOpening active={!pages || !ready}/>
+      <NotebookOpening active={!failed && (!pages || !ready)}/>
+      {loadingChapter&&<ChapterLoading spread={loadingChapter}/>}
       {failed && <div className="study-loading" role="alert"><p>The paper couldn’t load.</p><button onClick={() => location.reload()}>Try again</button></div>}
       <div className={`study-caption${view === 'world' ? ' study-caption--close' : ''}`}>
-        {entry==='open'&&view==='desk'?<span className="study-zoom-hint">{notebookZoom>.95?'Scroll back to zoom out':'Scroll to look closer'}</span>:<>
+        {entry==='open'&&view==='desk'?<span className="study-zoom-hint"><span className="study-hint-desktop">{notebookZoom>.95?'Scroll back to zoom out':'Scroll to look closer'}</span><span className="study-hint-mobile">{notebookZoom>.95?'Pinch inward to zoom out':'Pinch to look closer'}</span></span>:<>
         <p>{entry==='closed'?'A notebook, waiting to be opened.':entry==='opening'?'Opening…':view === 'world' ? (spread==='start'?'The campsite':spread==='making'?'Desert Detour':'Slow Post Station') : spread === 'start' ? 'A small world. A little room to wander.' : spread==='making'?'Making · References, Build together, Refine':spread==='making-notes'?'Making · Process notes':spread==='projects'?'Projects · PawPal':'Contact · Slow Post Station'}</p>
         <span className="study-hint-desktop">{entry==='closed' ? 'Click the brass clasp to open.' : entry==='opening' ? ' ' : view === 'world' ? (spread==='start'?'Click the ground to walk; the chair to rest. Click the chair again for a nap.':spread==='making'?'Click the ground to walk; the balloon to receive a letter.':'Click the ground to walk; the postbox to collect a postmark.')+' Escape returns to the desk.' : spread === 'start' ? 'Click the campsite to move the cat. Choose a passport stamp to turn pages.' : 'Drag gently to change your point of view.'}</span>
         <span className="study-hint-mobile">{entry==='closed' ? 'Click the brass clasp to open.' : entry==='opening' ? ' ' : view === 'world' ? (spread==='start'?'Click the ground to walk; the chair to rest. Click the chair again for a nap.':spread==='making'?'Click the ground to walk; the balloon to receive a letter.':'Click the ground to walk; the postbox to collect a postmark.')+' Escape returns to the desk.' : spread === 'start' ? 'Tap the campsite to move the cat. Read the pages to choose a stamp.' : 'Drag gently to change your point of view.'}</span>
@@ -616,8 +652,8 @@ function Study() {
           {spread==='making'&&view==='world'&&<button className="study-primary" onClick={travel.startDesert} disabled={Boolean(turn)||journey!=='ready'}>{journey==='collected'?'Airmail received':journey==='ready'?'Receive airmail':'Receiving…'}</button>}
           {spread==='contact'&&<button className="study-primary" onClick={travel.startPost} disabled={Boolean(turn)||post!=='ready'}>{post==='sent'?'Postmark collected':post==='ready'?'Collect postmark':'Posting…'}</button>}
           {view !== 'desk' && <button onClick={returnToDesk} disabled={entry!=='open' || Boolean(turn)}>← Back to desk</button>}
-          {view === 'desk' && <button onClick={() => { setNotebookZoom(0);setResetToken(value=>value+1);setReadSide(spread==='making'||spread==='contact'?'right':'left'); setView('read'); }} disabled={!ready || entry!=='open' || Boolean(turn)}>Read the pages</button>}
-          {(spread==='making'||spread==='contact') && view !== 'world' && <button className="study-primary" ref={closerButton} disabled={!ready || entry!=='open' || Boolean(turn)} onClick={() => {setNotebookZoom(0);setResetToken(value=>value+1);setView('world');}}>{spread==='making'?'Explore the desert':'Explore the station'} <span aria-hidden="true">↗</span></button>}
+          {view === 'desk' && <button onClick={() => { setReadSide(defaultReadSide(spread));changeView('read'); }} disabled={!ready || entry!=='open' || Boolean(turn)}>Read the pages</button>}
+          {(spread==='making'||spread==='contact') && view !== 'world' && <button className="study-primary" ref={closerButton} disabled={!ready || entry!=='open' || Boolean(turn)} onClick={() => {changeView('world');}}>{spread==='making'?'Explore the desert':'Explore the station'} <span aria-hidden="true">↗</span></button>}
         </div>
       </nav>
       <div className="study-screenreader" role="status" aria-live="polite">
@@ -625,7 +661,7 @@ function Study() {
       </div>
       <section className="study-screenreader" aria-label="Notebook text">
         <h1>Fiona’s little world</h1>
-        {spread==='start'?<><h2>Traveler’s passport</h2><p>Start, Making, Projects, Contact.</p><p>Scroll or use + and - to zoom. Press 0 to see the whole notebook. Click the campsite to choose where the cat walks.</p></>:spread==='making'?<><h2>Desert Detour / Making</h2><p>References: desk photos and paper-craft references; explore the look through prototypes. Build together: created with AI, Blender and Three.js; connect the notebook, scenes and cat. Refine: review screenshots and test in-browser; adjust the paper, movement and details.</p></>:spread==='making-notes'?<><h2>Process notes</h2><p>A layout overview and actual before-and-after screenshots of this website.</p></>:spread==='projects'?<><h2>PawPal</h2><p>A desktop pet for macOS and Windows. AI agent updates in little thought bubbles. Gentle nudges for water, breaks and focus. Meeting reminders, plus a monthly journal to track your water and break habits.</p></>:<><h2>About Fiona</h2><p>I work with data and build small tools. Email fionabfeng@gmail.com. Use the postbox to collect a station postmark.</p></>}
+        {spread==='start'?<><h2>Traveler’s passport</h2><p>Start, Making, Projects, Contact.</p><p>Pinch, scroll or use + and - to zoom. Press 0 to see the whole notebook. Click the campsite to choose where the cat walks.</p></>:spread==='making'?<><h2>Desert Detour / Making</h2><p>References: desk photos and paper-craft references; explore the look through prototypes. Build together: created with AI, Blender and Three.js; connect the notebook, scenes and cat. Refine: review screenshots and test in-browser; adjust the paper, movement and details.</p></>:spread==='making-notes'?<><h2>Process notes</h2><p>A layout overview and actual before-and-after screenshots of this website.</p></>:spread==='projects'?<><h2>PawPal</h2><p>A desktop pet for macOS and Windows. AI agent updates in little thought bubbles. Gentle nudges for water, breaks and focus. Meeting reminders, plus a monthly journal to track your water and break habits.</p></>:<><h2>About Fiona</h2><p>I work with data and build small tools. Email fionabfeng@gmail.com. Use the postbox to collect a station postmark.</p></>}
 
       </section>
     </main>

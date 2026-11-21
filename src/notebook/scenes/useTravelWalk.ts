@@ -3,6 +3,7 @@ import {useFrame,useThree,type ThreeEvent} from '@react-three/fiber';
 import * as THREE from 'three';
 import {planTravelRoute,type TravelGround,type TravelPoint} from './travelNavigation';
 import {catTurnDuration,catTurnPose,catWalkFrame,catSettleFrame,CAT_SETTLE_SECONDS,CAT_REST_FRAME} from '../catMotion';
+import {pathLength,pointAtDistance} from '../pathMotion';
 export type TravelPose={frame:number;mirrored:boolean;x:number;z:number;moving:boolean};
 type Route={path:TravelPoint[];distance:number;length:number;elapsed:number;settling:number;turn:number;fromFrame:number;fromMirrored:boolean;mirrored:boolean;arrive?:()=>void};
 
@@ -12,7 +13,7 @@ export function useTravelWalk({enabled,root,cat,scene,height,reduced,onFreeWalk}
   function moveTo(goal:TravelPoint,arrive?:()=>void){
     if(!enabled||!cat.current)return;
     const from:TravelPoint=[cat.current.position.x,cat.current.position.z],path=planTravelRoute(scene,from,goal),end=path.at(-1)!;
-    let length=0;for(let i=1;i<path.length;i++)length+=Math.hypot(path[i][0]-path[i-1][0],path[i][1]-path[i-1][1]);
+    const length=pathLength(path);
     const mirrored=Math.abs(end[0]-from[0])>.03?end[0]>from[0]:pose.current.mirrored;
     if(reduced||length<.025){cat.current.position.set(end[0],height(...end),end[1]);route.current=null;pose.current={frame:CAT_REST_FRAME,mirrored,x:end[0],z:end[1],moving:false};arrive?.();}
     else{const fromFrame=pose.current.frame;route.current={path,distance:0,length,elapsed:0,settling:0,turn:catTurnDuration(fromFrame,pose.current.mirrored,mirrored),fromFrame,fromMirrored:pose.current.mirrored,mirrored,arrive};pose.current.moving=true;}
@@ -26,8 +27,8 @@ export function useTravelWalk({enabled,root,cat,scene,height,reduced,onFreeWalk}
       if(!reduced&&t<current.turn){Object.assign(p,catTurnPose(t,current.fromFrame,current.fromMirrored,current.mirrored));}
       else{
         current.distance=reduced?current.length:Math.min(current.length,current.distance+Math.min(dt,.1)*1.4);
-        let remaining=current.distance;
-        for(let i=1;i<current.path.length;i++){const a=current.path[i-1],b=current.path[i],length=Math.hypot(b[0]-a[0],b[1]-a[1]);if(remaining<=length||i===current.path.length-1){const f=Math.min(1,remaining/length),x=a[0]+(b[0]-a[0])*f,z=a[1]+(b[1]-a[1])*f;cat.current.position.set(x,height(x,z),z);break;}remaining-=length;}
+        const [x,z]=pointAtDistance(current.path,current.distance);
+        cat.current.position.set(x,height(x,z),z);
         p.mirrored=current.mirrored;p.frame=catWalkFrame(t-current.turn);
         if(current.distance>=current.length){
           current.settling+=Math.min(dt,.1);p.frame=catSettleFrame(current.settling);

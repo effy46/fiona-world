@@ -1,5 +1,5 @@
 import { publicAsset } from '../../lib/publicAsset';
-import {Suspense,useEffect,useRef,type ReactNode} from 'react';
+import {Suspense,useEffect,useLayoutEffect,useRef,type ReactNode} from 'react';
 import {useFrame,useThree} from '@react-three/fiber';
 import {Html,Text,useGLTF,useTexture} from '@react-three/drei';
 import * as THREE from 'three';
@@ -8,7 +8,7 @@ import {StationPaper,StationScene,type PostState} from '../scenes/StationScene';
 import {publicLinks,isPendingHref} from '../../content/publicLinks';
 import type {Spread} from './paper';
 import {NOTEBOOK_CAT_SIZE,TRAVEL_INSERT_SCALE} from './layout';
-import {contactLinks,contactLinkBox} from './pageLayout';
+import {contactLinks,contactLinkBox,pageToWorld,PAGE_DISTANCE_FACTOR} from './pageLayout';
 
 export type TravelActions={
   journey:Journey;post:PostState;
@@ -26,6 +26,31 @@ export function ChapterPreload(){
   },[]);
   return <Suspense fallback={null}><Text visible={false} raycast={()=>null} font={publicAsset('/fonts/Caveat-Medium.ttf')}>Desert Detour Slow Post Station</Text></Suspense>;
 }
+
+export function ChapterLoading({spread}:{spread:Spread}){
+  return <div className="notebook-loading study-chapter-loading" role="status" aria-live="polite">
+      <div className="notebook-loading__content">
+        <span className="notebook-loading__eyebrow" aria-hidden="true">FIONA’S LITTLE WORLD</span>
+        <div className="notebook-loading__illustration" aria-hidden="true">
+          <img src={publicAsset('/cat-sprites/loading.png')} alt="" width={119} height={240}/>
+          <span className="notebook-loading__ground"/>
+        </div>
+        <p className="notebook-loading__title">{spread==='making'?'Unfolding the desert…':'Getting the station ready…'}</p>
+        <p className="notebook-loading__copy">A few paper details are still on their way.<br/>Thanks for waiting.</p>
+        <span className="notebook-loading__dots" aria-hidden="true"><i/><i/><i/></span>
+      </div>
+    </div>;
+}
+
+// Report suspension to the ordinary DOM so the shield cannot inherit a 3D transform.
+export function ChapterPending({spread,onLoading}:{spread:Spread;onLoading:(spread:Spread|null)=>void}){
+  useLayoutEffect(()=>{
+    onLoading(spread);
+    return()=>onLoading(null);
+  },[spread,onLoading]);
+  return null;
+}
+
 export function ChapterInsert({spread,travel,reduced,turning}:{spread:Spread;travel:TravelActions;reduced:boolean;turning:boolean}){
   const {invalidate}=useThree();const root=useRef<THREE.Group>(null!);const fold=useRef(0);
   const busy=travel.post==='posting'||travel.journey==='walking'||travel.journey==='rising';
@@ -50,7 +75,7 @@ export function ChapterInsert({spread,travel,reduced,turning}:{spread:Spread;tra
 }
 
 function PaperTarget({x,y,w,h,side='right',children}:{x:number;y:number;w:number;h:number;side?:'left'|'right';children:ReactNode}){
-  return <Html transform center rotation={[-Math.PI/2,0,0]} position={[(side==='left'?-3.18:.012)+x/1024*3.168,.46,y/1536*4.58-2.29]} distanceFactor={3.168/1024*400} zIndexRange={[1,0]}>
+  return <Html transform center rotation={[-Math.PI/2,0,0]} position={pageToWorld(side,x,y,.46)} distanceFactor={PAGE_DISTANCE_FACTOR} zIndexRange={[1,0]}>
     <div className="study-paper-target" style={{width:w,height:h}} onPointerDown={event=>event.stopPropagation()} onClick={event=>event.stopPropagation()}>{children}</div>
   </Html>;
 }

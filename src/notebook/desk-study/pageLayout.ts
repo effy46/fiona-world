@@ -1,5 +1,13 @@
 import {publicLinks, isPendingHref} from '../../content/publicLinks';
 
+export type PageSide = 'left' | 'right';
+export const PAGE_SIZE = {width:1024, height:1536, worldWidth:3.168, worldHeight:4.58} as const;
+export const PAGE_DISTANCE_FACTOR = PAGE_SIZE.worldWidth / PAGE_SIZE.width * 400;
+
+export function pageToWorld(side:PageSide,x:number,y:number,height:number):[number,number,number]{
+  return [(side==='left'?-3.18:.012)+x/PAGE_SIZE.width*PAGE_SIZE.worldWidth,height,y/PAGE_SIZE.height*PAGE_SIZE.worldHeight-2.29];
+}
+
 // Canvas artwork, projected controls and visit marks use the same page coordinates.
 export const passportStamps = [
   {chapter:'start', label:'Start', x:280, y:689, border:'#65734d', ink:'#3f5938'},

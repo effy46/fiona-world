@@ -1,12 +1,12 @@
-import {chromium} from 'playwright';import * as THREE from 'three';import assert from 'node:assert/strict';import {mkdir,writeFile} from 'node:fs/promises';
+import {startNotebookCheck,openNotebook,selectChapter} from './notebook-browser.mjs';import * as THREE from 'three';import assert from 'node:assert/strict';import {writeFile} from 'node:fs/promises';
 import {sandHeight} from '../../src/notebook/scenes/desertTerrain.ts';
 import {NOTEBOOK_SCALE} from '../../src/notebook/desk-study/layout.ts';import {planTravelRoute,travelWalkable} from '../../src/notebook/scenes/travelNavigation.ts';
-const out='output/playwright/travel-walk';await mkdir(out,{recursive:true});const checks=[],errors=[];
+const out='output/playwright/travel-walk';const checks=[];
 for(const [scene,home,goals] of [['desert',[1.7,2.18],[[1.9,1.1],[.8,2.45],[-2.4,2.8],[-.75,1.3],[1.27,.05]]],['station',[.45,-.18],[[.1,1.1],[1.46,-.28],[-2.4,1.1],[-1.8,.4],[2.1,-.5]]]]){
  for(const goal of goals){const route=planTravelRoute(scene,home,goal);assert(route.length>1,`${scene}: no route ${goal}`);for(let i=1;i<route.length;i++)for(let t=0;t<=1;t+=.02)assert(travelWalkable(scene,[route[i-1][0]+(route[i][0]-route[i-1][0])*t,route[i-1][1]+(route[i][1]-route[i-1][1])*t]),`${scene} crosses solid ground`);}
 }checks.push('both scene routes avoid scenery and rails, blocked goals resolve to reachable ground');
-const b=await chromium.launch({channel:'chrome'});const p=await b.newPage({viewport:{width:1200,height:900}});p.on('pageerror',e=>errors.push(e.message));p.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
-async function chapter(name){await p.locator('.study-chapters').getByRole('button',{name,exact:true}).click();await p.locator(`[data-spread="${name.toLowerCase()}"][data-turning="false"]`).waitFor({timeout:15000});await p.waitForTimeout(1100);await p.getByRole('button',{name:`Explore the ${name==='Making'?'desert':'station'}`,exact:false}).click();await p.waitForTimeout(2000);}
+const {browser:b,page:p,errors}=await startNotebookCheck(out,{viewport:{width:1200,height:900}});
+async function chapter(name){await selectChapter(p,name);await p.waitForTimeout(1100);await p.getByRole('button',{name:`Explore the ${name==='Making'?'desert':'station'}`,exact:false}).click();await p.waitForTimeout(2000);}
 async function click(scene,x,z){
  // Query the actual sand mesh using the click ray; projected y only needs to be near its surface.
  const y=scene==='station'?.26:sandHeight(x,z);const v=new THREE.Vector3(-1.6+.46*x,.415+.46*(.08+y),-.25+.46*(z-(scene==='station'?.05:0))).multiplyScalar(NOTEBOOK_SCALE);
@@ -15,7 +15,7 @@ async function click(scene,x,z){
 async function pos(actor){return actor.evaluate(el=>[Number(el.dataset.x),Number(el.dataset.z)]);}
 async function idle(actor){await actor.locator('xpath=self::*[@data-moving="false"]').waitFor({timeout:18000});}
 try{
- await p.goto('http://127.0.0.1:5201/?v=travel-walk');await p.locator('[data-loaded="true"]').waitFor({timeout:45000});await p.getByRole('button',{name:'Open notebook',exact:true}).click();await p.locator('[data-ready="true"]').waitFor({timeout:20000});await p.waitForTimeout(3500);
+ await openNotebook(p,'travel-walk');await p.waitForTimeout(3500);
  for(const [chapterName,scene,label] of [['Making','desert','Walk with desert cat'],['Contact','station','Walk with station cat']].filter(([,scene])=>!process.argv.includes('--station-only')||scene==='station')){
   await chapter(chapterName);const actor=p.getByRole('button',{name:label,exact:true});const before=await pos(actor);
   if(scene==='station')assert(Math.abs(before[0]-.99)>.5,'Initial station cat overlaps the lamp');

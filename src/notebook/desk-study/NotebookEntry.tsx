@@ -54,11 +54,12 @@ export function NotebookEntry({ flap, leather, phase, reduced, canOpen, popup, o
     } else invalidate();
   });
   return <>
-    {createPortal(<mesh visible={phase!=='open'} position={[-1.7,-.465,0]} rotation={[Math.PI/2,0,Math.PI]}>
+    {/* One portal per flap: R3F uses the target UUID as the portal key. */}
+    {createPortal(<><mesh visible={phase!=='open'} position={[-1.7,-.465,0]} rotation={[Math.PI/2,0,Math.PI]}>
       <planeGeometry args={[2.35,3.35]}/>
       <meshStandardMaterial map={materials.title} transparent depthWrite={false} roughness={.95}/>
-    </mesh>,flap)}
-    {createPortal(<group visible={phase!=='open'} position={[-1.7,-.468,0]} rotation={[Math.PI/2,0,Math.PI]}>
+    </mesh>
+    <group visible={phase!=='open'} position={[-1.7,-.468,0]} rotation={[Math.PI/2,0,Math.PI]}>
       <Suspense fallback={null}>
         <Text position={[-.18,.28,.002]} font={PAGE_FONTS.serif.src} fontSize={COVER_TYPE.title/NOTEBOOK_SCALE}
           lineHeight={1.08} textAlign="center" anchorX="center" anchorY="middle"
@@ -67,7 +68,7 @@ export function NotebookEntry({ flap, leather, phase, reduced, canOpen, popup, o
           {'Fiona’s\nlittle world.'}
         </Text>
       </Suspense>
-    </group>,flap)}
+    </group></>,flap)}
     <group ref={strap} position={[3.4,.065,0]}>
       <mesh material={materials.hide} castShadow receiveShadow position={[0,.43,0]}>
         <boxGeometry args={[.045,.86,.38]}/>

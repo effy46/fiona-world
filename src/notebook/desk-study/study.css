@@ -105,11 +105,6 @@ button:disabled { opacity: .5; cursor: default; }
 .study-airmail-hint:disabled { visibility:hidden;pointer-events:none; }
 .desk-study[data-opening='closed']:not(:has(.study-clasp:hover,.study-clasp:focus-visible)) .study-caption { visibility:hidden; }
 .desk-study:not([data-opening='open']) .study-controls {visibility:hidden;pointer-events:none;}
-.desk-study .notebook-opening {position:absolute;inset:0;z-index:4;display:grid;place-items:center;background:#493628;opacity:1;transition:opacity .42s;}
-.desk-study .notebook-opening--done {opacity:0;visibility:hidden;pointer-events:none;}
-.desk-study .notebook-opening__line {font:22px StudyHand,cursive;opacity:0;transition:opacity .35s;}
-.desk-study .notebook-opening__line--visible {opacity:1;}
-@media(prefers-reduced-motion:reduce){.desk-study .notebook-opening{transition:none;}}
 .study-paper-target {pointer-events:auto;}
 .study-page-corner {display:block;width:150px;height:150px;padding:0;border:0;background:transparent;cursor:pointer;pointer-events:auto;}
 .study-page-corner::after {content:'';position:absolute;right:0;bottom:0;width:75px;height:75px;background:linear-gradient(135deg,transparent 48%,#b8a78188 50%,#f9f1dccc 53%);opacity:0;transition:opacity .15s;}
@@ -118,7 +113,6 @@ button:disabled { opacity: .5; cursor: default; }
 .study-paper-target button,.study-paper-target a {display:block;width:100%;height:100%;border:0;background:transparent;cursor:pointer;padding:0;}
 .study-paper-target button:focus-visible,.study-paper-target a:focus-visible {outline:5px solid #536e7a;outline-offset:5px;background:#fff8e522;}
 .study-paper-target button:disabled {cursor:default;}
-.study-unfolding {color:#534a38;font:20px StudyHand,cursive;white-space:nowrap;}
 @media(max-width:700px){.study-controls{gap:8px;}.study-chapters{gap:0;flex-wrap:wrap;}.study-controls button{padding:8px 9px;}.study-actions{justify-content:center;flex-wrap:wrap;}.study-caption{bottom:210px;}.study-caption--close{bottom:auto;}.study-chapters .study-other-page{flex-basis:100%;}}
 @media(max-width:420px){
   .study-controls {bottom:34px;}

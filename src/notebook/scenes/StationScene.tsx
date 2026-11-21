@@ -207,7 +207,7 @@ export function StationScene({ state, reducedMotion, onDelivered, onPost, paused
       </group>
       <StationNameboard x={(lampXs[0]+lampXs[1])/2}/>
       <group ref={catGroup} position={[.45, .3, -.18]}>
-        <TravelCat uprightDepth size={catSize} pose={walk.pose} interactive={!paused} label="Walk with station cat" onWalk={()=>{onCancelPost();walk.moveTo([.1,.1]);}}/>
+        <TravelCat upright size={catSize} pose={walk.pose} interactive={!paused} label="Walk with station cat" onWalk={()=>{onCancelPost();walk.moveTo([.1,.1]);}}/>
       </group>
       <group ref={letter} visible={false}><Billboard><Envelope at={[0, 0, 0]} scale={1.5} /></Billboard></group>
       <SteamTrain active={!paused} reduced={reducedMotion}/>
