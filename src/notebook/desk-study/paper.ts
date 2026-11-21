@@ -17,8 +17,8 @@ export type StampChapter = typeof passportStamps[number]['label'];
 export async function makePages() {
   const fonts=await Promise.all(Object.values(PAGE_FONTS).map(font=>new FontFace(font.family,`url(${font.src})`).load()));
   fonts.forEach(font=>document.fonts.add(font));
-  const images=await Promise.all([publicAsset('/desk-study/projects/pawpal-agent-actions.png'),publicAsset('/character-portrait.png'),publicAsset('/desk-study/making/early.jpg'),publicAsset('/desk-study/making/current.jpg')].map(async src=>{const image=new Image();image.src=src;await image.decode();return image;}));
-  const [pawpal,portrait,early,current]=images;
+  const images=await Promise.all([publicAsset('/desk-study/projects/pawpal-agent-actions.png'),publicAsset('/desk-study/making/early.jpg'),publicAsset('/desk-study/making/current.jpg')].map(async src=>{const image=new Image();image.src=src;await image.decode();return image;}));
+  const [pawpal,early,current]=images;
 
   function page(spread: Spread, side: 'left' | 'right') {
     const canvas = document.createElement('canvas');
@@ -158,7 +158,7 @@ export async function makePages() {
       text('Every stamp is a tiny yes.',104,1363,'body');
     }else if(spread==='start'){
       text('Somewhere between pages.',104,1342,'sceneTitle');
-      text('A little room for wandering.',104,1397,'body',PAGE_INK.muted);
+      text('Click around to explore.',104,1397,'body',PAGE_INK.muted);
     }else if(spread==='making'&&side==='left'){
       text('Desert Detour',104,1342,'sceneTitle');text('A good place to pull over.',104,1397,'body',PAGE_INK.muted);
     }else if(spread==='contact'&&side==='left'){
@@ -181,8 +181,13 @@ export async function makePages() {
     }else if(spread==='projects'&&side==='left'){
       text('PawPal',104,280,'title');text('A small companion for the desktop.',104,370,'subtitle',PAGE_INK.sage);
       photo(pawpal,104,475,816,510,-.025);tape(710,975,260,'#e6d1a6');
-      text('View full-size image →',104,1080,'caption',PAGE_INK.sage);
-      text('Agent activity, made visible.',104,1230,'body');text('A personal project.',104,1295,'body',PAGE_INK.sage);
+      [
+        'A desktop pet for macOS and Windows.',
+        'AI agent updates in little thought bubbles.',
+        'Gentle nudges for water, breaks and focus.',
+        'Meeting reminders, plus a monthly journal',
+        'to track your water and break habits.',
+      ].forEach((copy,index)=>text(copy,104,1060+index*58,'body',PAGE_INK.sage));
       text(isPendingHref(publicLinks.pawPalHref)?'Project link · to be added':'Open PawPal →',104,1370,'caption',PAGE_INK.sage);
     }else if(spread==='projects'){
       text('Next project',104,280,'title');text('Personal projects & experiments',104,375,'subtitle',PAGE_INK.sage);
@@ -190,7 +195,6 @@ export async function makePages() {
       text('Space for the next project.',185,1270,'body',PAGE_INK.sage);
     }else{
       text('Hello,',104,280,'title');text('I’m Fiona.',104,377,'title');
-      photo(portrait,610,223,280,365,.045);
       tape(320,535,430,'#e2c3ad');text('Collect postmark →',125,550,'body',PAGE_INK.contact,true);
       text('I work with data and build small tools.',104,665,'body');text('This notebook is one of my experiments.',104,717,'body');
       contactLinks.forEach(({label,value,y,color})=>{ctx.fillStyle=color;ctx.fillRect(contactLinkBox.x,y,contactLinkBox.width,contactLinkBox.height);text(label,128,y+39,'eyebrow',PAGE_INK.muted);text(value,128,y+88,'body',value==='Link to be added'?PAGE_INK.pending:PAGE_INK.text);});

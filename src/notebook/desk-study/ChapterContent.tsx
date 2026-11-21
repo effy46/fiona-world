@@ -54,16 +54,21 @@ function PaperTarget({x,y,w,h,side='right',children}:{x:number;y:number;w:number
     <div className="study-paper-target" style={{width:w,height:h}} onPointerDown={event=>event.stopPropagation()} onClick={event=>event.stopPropagation()}>{children}</div>
   </Html>;
 }
-export function PageLinks({spread,travel,onSelect}:{spread:Spread;travel:TravelActions;onSelect:(spread:Spread)=>void}){
-  if(spread==='making')return <PaperTarget x={510} y={1350} w={800} h={104}><button aria-label="Open process notes" title="Open process notes" onClick={()=>onSelect('making-notes')}/></PaperTarget>;
+// Button hotspots avoid the browser's URL preview over the paper scene.
+function openPaperDestination(href:string){
+  if(href.startsWith('mailto:'))window.location.href=href;
+  else window.open(href,'_blank','noopener,noreferrer');
+}
+export function PageLinks({spread,travel,onSelect,onPreviewImage}:{spread:Spread;travel:TravelActions;onSelect:(spread:Spread)=>void;onPreviewImage:()=>void}){
+  if(spread==='making')return <PaperTarget x={510} y={1350} w={800} h={104}><button aria-label="Open process notes" onClick={()=>onSelect('making-notes')}/></PaperTarget>;
   if(spread==='projects')return <>
-    <PaperTarget side="left" x={350} y={1060} w={492} h={100}><a href={publicAsset('/desk-study/projects/pawpal-agent-actions.png')} target="_blank" rel="noreferrer" aria-label="View full-size PawPal image"/></PaperTarget>
-    {!isPendingHref(publicLinks.pawPalHref)&&<PaperTarget side="left" x={512} y={1365} w={816} h={120}><a href={publicLinks.pawPalHref} target="_blank" rel="noreferrer" aria-label="Open PawPal project"/></PaperTarget>}
+    <PaperTarget side="left" x={512} y={730} w={816} h={510}><button onClick={onPreviewImage} aria-label="Enlarge PawPal image" aria-haspopup="dialog" style={{cursor:'zoom-in'}}/></PaperTarget>
+    {!isPendingHref(publicLinks.pawPalHref)&&<PaperTarget side="left" x={512} y={1365} w={816} h={120}><button onClick={()=>openPaperDestination(publicLinks.pawPalHref)} aria-label="Open PawPal project"/></PaperTarget>}
   </>;
   if(spread!=='contact')return null;
 
   return <>
-    <PaperTarget x={320} y={535} w={430} h={110}><button aria-label="Collect station postmark" title="Collect station postmark" disabled={travel.post!=='ready'} onClick={travel.startPost}/></PaperTarget>
-    {contactLinks.filter(({href})=>!isPendingHref(href)).map(({ariaLabel,href,y})=><PaperTarget key={ariaLabel} x={contactLinkBox.x+contactLinkBox.width/2} y={y+contactLinkBox.targetOffsetY} w={contactLinkBox.width} h={contactLinkBox.height}><a href={href} target={href.startsWith('mailto:')?undefined:'_blank'} rel="noreferrer" aria-label={ariaLabel} title={ariaLabel}/></PaperTarget>)}
+    <PaperTarget x={320} y={535} w={430} h={110}><button aria-label="Collect station postmark" disabled={travel.post!=='ready'} onClick={travel.startPost}/></PaperTarget>
+    {contactLinks.filter(({href})=>!isPendingHref(href)).map(({ariaLabel,href,y})=><PaperTarget key={ariaLabel} x={contactLinkBox.x+contactLinkBox.width/2} y={y+contactLinkBox.targetOffsetY} w={contactLinkBox.width} h={contactLinkBox.height}><button onClick={()=>openPaperDestination(href)} aria-label={ariaLabel}/></PaperTarget>)}
   </>;
 }

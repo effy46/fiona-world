@@ -2,7 +2,7 @@ import {chromium} from 'playwright';import * as THREE from 'three';import assert
 import {sandHeight} from '../../src/notebook/scenes/desertTerrain.ts';
 import {NOTEBOOK_SCALE} from '../../src/notebook/desk-study/layout.ts';import {planTravelRoute,travelWalkable} from '../../src/notebook/scenes/travelNavigation.ts';
 const out='output/playwright/travel-walk';await mkdir(out,{recursive:true});const checks=[],errors=[];
-for(const [scene,home,goals] of [['desert',[1.7,2.18],[[1.9,1.1],[.8,2.45],[-2.4,2.8],[-.75,1.3],[1.27,.05]]],['station',[.72,-.28],[[.1,1.1],[1.46,-.28],[-2.4,1.1],[-1.8,.4],[2.1,-.5]]]]){
+for(const [scene,home,goals] of [['desert',[1.7,2.18],[[1.9,1.1],[.8,2.45],[-2.4,2.8],[-.75,1.3],[1.27,.05]]],['station',[.45,-.18],[[.1,1.1],[1.46,-.28],[-2.4,1.1],[-1.8,.4],[2.1,-.5]]]]){
  for(const goal of goals){const route=planTravelRoute(scene,home,goal);assert(route.length>1,`${scene}: no route ${goal}`);for(let i=1;i<route.length;i++)for(let t=0;t<=1;t+=.02)assert(travelWalkable(scene,[route[i-1][0]+(route[i][0]-route[i-1][0])*t,route[i-1][1]+(route[i][1]-route[i-1][1])*t]),`${scene} crosses solid ground`);}
 }checks.push('both scene routes avoid scenery and rails, blocked goals resolve to reachable ground');
 const b=await chromium.launch({channel:'chrome'});const p=await b.newPage({viewport:{width:1200,height:900}});p.on('pageerror',e=>errors.push(e.message));p.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
@@ -18,6 +18,7 @@ try{
  await p.goto('http://127.0.0.1:5201/?v=travel-walk');await p.locator('[data-loaded="true"]').waitFor({timeout:45000});await p.getByRole('button',{name:'Open notebook',exact:true}).click();await p.locator('[data-ready="true"]').waitFor({timeout:20000});await p.waitForTimeout(3500);
  for(const [chapterName,scene,label] of [['Making','desert','Walk with desert cat'],['Contact','station','Walk with station cat']].filter(([,scene])=>!process.argv.includes('--station-only')||scene==='station')){
   await chapter(chapterName);const actor=p.getByRole('button',{name:label,exact:true});const before=await pos(actor);
+  if(scene==='station')assert(Math.abs(before[0]-.99)>.5,'Initial station cat overlaps the lamp');
   await click(scene,scene==='desert'?.2:.1,scene==='desert'?2.8:1.15);await p.waitForFunction(label=>document.querySelector(`[aria-label="${label}"]`)?.dataset.moving==='true',label,{timeout:5000});await p.waitForTimeout(850);await p.screenshot({path:`${out}/${scene}-walking.png`});
   await click(scene,scene==='desert'?1.9:1.7,scene==='desert'?2.6:.8);await idle(actor);const after=await pos(actor);assert(Math.hypot(after[0]-before[0],after[1]-before[1])>.2,`${scene}: no movement`);assert(travelWalkable(scene,after),`${scene}: unsafe arrival ${after}`);await p.screenshot({path:`${out}/${scene}-arrived.png`});checks.push(`${scene}: ground click, mid-walk redirection, safe arrival`);
   await p.emulateMedia({reducedMotion:'reduce'});await click(scene,.25,scene==='desert'?2.8:1.1);await p.waitForTimeout(300);assert.equal(await actor.getAttribute('data-moving'),'false');checks.push(`${scene}: reduced motion`);await p.emulateMedia({reducedMotion:'no-preference'});await p.waitForTimeout(180);
