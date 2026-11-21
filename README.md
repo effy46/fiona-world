@@ -1,41 +1,37 @@
 # Fiona World
 
-Fiona Feng’s personal Traveler’s Notebook: an interactive paper-craft portfolio with a shared writer desk and cat guide. Built with React, TypeScript, Vite, React Three Fiber, Drei and Three.js.
+A little world inside a traveler’s notebook.
 
-## Run
+![The traveler’s notebook with the cat facing forward beside the campsite chair](.github/images/notebook-cat-front.png)
 
-```sh
-npm ci
-npm run dev
-npm run build
-npm run preview
-```
+Fiona World is Fiona Feng’s personal corner of the internet: a place for things I make, how they come together, and a few small adventures along the way.
 
-Development uses port 5201. `/` opens the final integrated notebook through the sole HTML entry, `index.html`. Chapters are Start, Making, Projects and Contact; Making includes process notes and airmail, Contact includes the station postmark. The old separate routes and duplicate cat sandbox have been removed.
+On a warm writer’s desk sits a notebook with a brass clasp. Open it, and a cream-colored cat with a green scarf and a postal bag becomes your companion. Campsites, desert landscapes and a quiet station unfold from its paper pages.
 
-## Layout
+[Open the notebook →](https://effy46.github.io/fiona-world/)
 
-- `src/notebook/desk-study/`: opening, pages, text, chapter state and cat.
-- `src/notebook/scenes/`: desert and station scene content.
-- `src/notebook/WriterDeskProps.tsx`, `CameraStillLife.tsx`, `DeskProps.tsx`: shared desk objects, candle and steam.
-- `src/content/publicLinks.ts`: public contact/project links; résumé stays pending.
-- `public/`: assets loaded by the browser.
-- `assets/`: editable Blender sources, source textures and original cat sheets.
-- `scripts/`: Blender/texture generators and browser verification.
+## Four chapters to wander through
 
-## Verify
+**Start** — Your journey begins with a traveler’s passport and a tiny campsite. Let the cat explore, settle into a chair, or take a nap before turning the page.
 
-```sh
-node scripts/check-notebook-drift.mjs
-npm run build
-node scripts/desk-study/verify-chapters.mjs
-node scripts/desk-study/verify-airmail.mjs
-```
+**Making** — A peek at the ideas, references and experiments behind this world, with glimpses of how it changed along the way. Take a detour into the desert; there’s a letter arriving by balloon.
 
-Run the browser checks with the dev server on port 5201 and Chrome installed. Their screenshots/results go to ignored `output/playwright/`. Generators require Blender or Python with Pillow/NumPy; they are not needed for the website build.
+**Projects** — A collection of things I’m building, starting with [PawPal](https://github.com/effy46/PawPal), a desktop pet that keeps you company through the working day.
 
-## GitHub Pages
+**Contact** — A little about me and where to find me. Stop by the station and collect a postmark before you go.
 
-The workflow deploys pushes to `main` or an explicit manual run. It runs `npm ci` and `GITHUB_PAGES=true npm run build`, then publishes `dist/`. Runtime assets honor `/fiona-world/`. Pushing the redesign branch alone does not trigger automatic publication.
+## Take your time
 
-Screenshots, generated builds, reference material, local machine settings and Blender backups are ignored. Keep the source `assets/` and `package-lock.json` in version control. `references/pre-cleanup-2026-11-20.tar.gz` is a local recovery snapshot of the previous code, not a publishable asset.
+![Interaction guide: click the scene ground to move the cat; click the campsite chair to sit, then click it again to nap; click the station postbox to send a letter and collect a postmark](.github/images/interaction-guide.png)
+
+Look closer at the paper scenes, wander off the path, receive some airmail, and collect stamps in your passport.
+
+## Small details along the way
+
+![Details across the notebook: drifting campsite clouds; desert airmail and process notes; a larger PawPal picture preview; station steam rings and a POSTED mark; VISITED stamps on the passport for chapters explored during the current visit; coffee steam, candlelight and turning paper pages](.github/images/details-guide.png)
+
+Paper clouds drift over the campsite, the coffee gives off a little steam, and the candle flickers beside the book. The desert leaves an **AIRMAIL RECEIVED** mark after your delivery; the station leaves **POSTED** after your letter is sent.
+
+Back in the passport, **VISITED** marks the chapters you’ve explored during this visit. In Projects, click the PawPal picture for a closer look; in Making, turn to the process notes to see the notebook’s earlier form.
+
+There’s no hurry to reach the last page.
