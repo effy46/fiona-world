@@ -145,7 +145,7 @@ export function NotebookCat({visible,reduced,request,destination,origin,chairSea
       }
     }
     shadow.current.visible=!hop.current;
-    if(button.current){button.current.dataset.x=root.current.position.x.toFixed(3);button.current.dataset.z=root.current.position.z.toFixed(3);button.current.dataset.y=root.current.position.y.toFixed(4);button.current.dataset.pose=stance.current;}
+    if(button.current){button.current.dataset.x=root.current.position.x.toFixed(3);button.current.dataset.z=root.current.position.z.toFixed(3);button.current.dataset.y=root.current.position.y.toFixed(4);button.current.dataset.pose=stance.current;button.current.dataset.frame=String(currentFrame.current);}
     if(chairButton.current){chairButton.current.disabled=Boolean(hop.current);chairButton.current.dataset.pose=stance.current;}
   });
   return <>
