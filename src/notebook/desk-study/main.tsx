@@ -2,7 +2,7 @@ import { publicAsset } from '../../lib/publicAsset';
 import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Html, Environment, Lightformer, OrbitControls, useGLTF } from '@react-three/drei';
+import { Html, Text, Environment, Lightformer, OrbitControls, useGLTF } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
 import { makePages, impressVisit, impressPostmark, spreads, chapters, chapterOf, type Pages, type Spread, type StampChapter } from './paper';
@@ -19,6 +19,9 @@ import type {Journey} from '../scenes/DesertScene';
 import type {PostState} from '../scenes/StationScene';
 import { NotebookCat, type CatPhase } from './NotebookCat';
 import type {CampPoint} from './campNavigation';
+import {ImagePreview} from './ImagePreview';
+import {ContactPortrait} from './ContactPortrait';
+import {PAGE_FONTS} from './typography';
 import './study.css';
 
 type View = 'desk' | 'read' | 'world';
@@ -56,9 +59,10 @@ function CameraDirector({view,readSide,reduced,controls,entry,spread,turn,resetT
       return {target,position:target.clone().add(new THREE.Vector3(0,.82,.572).multiplyScalar(distance))};
     }
     const sceneX=spread==='start'?1.65:-1.65,readingX=readSide==='left'?-1.62:1.62;
-    const target=new THREE.Vector3(0,.35,0);
-    const distance=Math.max(7.8/(2*Math.tan(THREE.MathUtils.degToRad(37/2))*size.width/size.height),10.8);
-    const position=target.clone().add(new THREE.Vector3(0,8.4,7).normalize().multiplyScalar(distance));
+    // Shared desktop framing: a lower eye line shows the paper scenery's depth.
+    const target=new THREE.Vector3(mobile?0:.2,.35,mobile?0:-.6);
+    const distance=Math.max(7.8/(2*Math.tan(THREE.MathUtils.degToRad(37/2))*size.width/size.height),mobile?10.8:8.9);
+    const position=target.clone().add((mobile?new THREE.Vector3(0,8.4,7):new THREE.Vector3(0,5.9,8)).normalize().multiplyScalar(distance));
     if(view==='world'){
       target.set(sceneX,.65,mobile?.3:-.12);
       position.set(sceneX+(mobile?.75:1.25),mobile?8.4:4.3,mobile?8:4.8);
@@ -141,7 +145,7 @@ function Passport({ visible, disabled, onStamp }: {
     position={[-3.18 + x/1024*3.168, .445, y/1536*4.58-2.29]}
     zIndexRange={[1, 0]}>
     <button className="study-stamp-target" style={{width: size.width < 700 ? 60 : 76}}
-      aria-label={`${chapter} passport stamp`} title={`Open ${chapter}`} disabled={disabled}
+      aria-label={`${chapter} passport stamp`} disabled={disabled}
       onPointerDown={event => event.stopPropagation()}
       onClick={event => { event.stopPropagation(); onStamp(chapter); }}>
       <span className="study-screenreader">{chapter}</span>
@@ -149,15 +153,16 @@ function Passport({ visible, disabled, onStamp }: {
   </Html>)}</group>;
 }
 
-function DeskModel({ entry, canOpen, onOpen, onOpened, travel, pages, spread, turn, reduced, catRequest, catDestination, onCatPhase, onCatRequest, onReady, onTurned, onCampClick, onSelect, onStamp, passportVisible }: {
+function DeskModel({ entry, canOpen, onOpen, onOpened, travel, pages, spread, turn, reduced, catRequest, catDestination, onCatPhase, onCatRequest, onReady, onTurned, onCampClick, onSelect, onPreviewImage, onStamp, passportVisible }: {
   travel:TravelActions; entry: EntryPhase; canOpen: boolean; onOpen: () => void; onOpened: () => void;
   pages: Pages; spread: Spread; turn: Turn | null; reduced: boolean; catRequest: number; catDestination:CampPoint|null; onCatPhase: (phase: CatPhase) => void; onCatRequest: () => void;
   onReady: () => void; onTurned: (spread: Spread) => void;
-  onCampClick: (point:CampPoint) => void; onSelect: (spread: Spread) => void;
+  onCampClick: (point:CampPoint) => void; onSelect: (spread: Spread) => void; onPreviewImage: () => void;
   onStamp: (chapter: StampChapter) => void; passportVisible: boolean;
 }) {
   const { scene: source } = useGLTF(publicAsset('/desk-study/desk-scene.glb'));
   const [turnHalf,setTurnHalf]=useState(false);
+  const [chairRequest,setChairRequest]=useState(0);
   const forwardTurn=turn?spreads.indexOf(turn.to)>spreads.indexOf(turn.from):true;
   const leftSpread=turn?(forwardTurn?turn.from:turn.to):spread;
   const rightSpread=turn?(forwardTurn?turn.to:turn.from):spread;
@@ -194,8 +199,19 @@ function DeskModel({ entry, canOpen, onOpen, onOpened, travel, pages, spread, tu
       }
     });
     const campChair=scene.getObjectByName('CampChair');
-    if(campChair) campChair.position.z-=.12;
+    if(campChair){
+      campChair.position.z-=.12;
+      const feet=new THREE.Box3().setFromObject(campChair).min.y;
+      const pivot=campChair.getWorldPosition(new THREE.Vector3()).y;
+      campChair.scale.multiplyScalar(1.35);
+      // Enlarge around the feet so the chair stays planted on the page.
+      campChair.position.y-=(feet-pivot)*.35;
+    }
     for(const name of ['CeramicCup','FountainPen','BrassStamp']){const old=scene.getObjectByName(name);if(old)old.visible=false;}
+    for(const chapter of chapters){
+      const lettering=scene.getObjectByName(`${chapter[0].toUpperCase()+chapter.slice(1)}Lettering`);
+      if(lettering)lettering.visible=false;
+    }
     const left = mesh('PageLeft'), right = mesh('PageRight'), leaf = mesh('TurningLeaf');
     // The imported asset is cached; own only the geometry/materials we animate.
     for (const page of [left, right, leaf]) {
@@ -247,10 +263,14 @@ function DeskModel({ entry, canOpen, onOpen, onOpened, travel, pages, spread, tu
       if (Array.isArray(node.material)) node.material=node.material.map(material=>material===originalLeather?leather!:material);
       else if (node.material===originalLeather) node.material=leather!;
     });
+    // Bounds must include the chair's final scale and foot-height adjustment.
+    scene.updateMatrixWorld(true);
     const worldOrigin=world.getWorldPosition(new THREE.Vector3());
     const campOrigin:CampPoint=[worldOrigin.x,worldOrigin.z];
+    const chairSeat=new THREE.Box3().setFromObject(mesh('CampChairSeat')).getCenter(new THREE.Vector3());
+    chairSeat.y+=.012;
     const desktop=mesh('Desktop');desktop.removeFromParent();
-    return { scene, flap, leather, leatherMaps, left, right, leaf, world, clouds, campOrigin, desktop, setLeafArtwork, base: Float32Array.from(leaf.geometry.attributes.position.array) };
+    return { scene, flap, leather, leatherMaps, left, right, leaf, world, clouds, campOrigin, chairSeat, desktop, setLeafArtwork, base: Float32Array.from(leaf.geometry.attributes.position.array) };
   }, [source]);
   const animation = useRef<{ started: number | null; turn: Turn | null; flipped: boolean }>({ started: null, turn: null, flipped: false });
   const fold = useRef(0);
@@ -343,6 +363,9 @@ function DeskModel({ entry, canOpen, onOpen, onOpened, travel, pages, spread, tu
         if (event.delta > 4) return;
         event.stopPropagation();
         if (turn || entry!=='open') return;
+        let chairPart:THREE.Object3D|null=event.object;
+        while(chairPart&&chairPart.name!=='CampChair')chairPart=chairPart.parent;
+        if(chairPart&&spread==='start'){setChairRequest(value=>value+1);return;}
         if (event.object.name === 'StartTab' || event.object.name === 'StartLettering') onSelect('start');
         else if (event.object.name === 'MakingTab' || event.object.name === 'MakingLettering') onSelect('making');
         else if (event.object.name === 'ProjectsTab' || event.object.name === 'ProjectsLettering') onSelect('projects');
@@ -356,9 +379,17 @@ function DeskModel({ entry, canOpen, onOpen, onOpened, travel, pages, spread, tu
           }
         }
       }} />
+      <Suspense fallback={null}>{chapters.map((chapter,index)=><Text key={chapter}
+        font={PAGE_FONTS.hand.src} fontSize={.2} color="#243425" outlineColor="#243425" outlineWidth={.0015}
+        position={[3.3,.281,index-1.5]} rotation={[-Math.PI/2,0,Math.PI/2]}
+        anchorX="center" anchorY="middle" depthOffset={-4} sdfGlyphSize={128} material-toneMapped={false}
+        onSync={()=>invalidate()} onClick={event=>{event.stopPropagation();if(event.delta<=4&&!turn&&entry==='open')onSelect(chapter);}}>
+        {chapter[0].toUpperCase()+chapter.slice(1)}
+      </Text>)}</Suspense>
       {entry==='open'&&<Suspense fallback={null}><PageInk pages={pages} leftSpread={leftSpread} rightSpread={rightSpread} hiddenSide={coveredSide}/></Suspense>}
+      {entry==='open'&&spread==='contact'&&!turn&&<Suspense fallback={null}><ContactPortrait/></Suspense>}
       {entry==='open'&&(spread==='making'||spread==='contact')&&<Suspense fallback={<Html position={[-1.6,.6,0]} center><span className="study-unfolding">Unfolding…</span></Html>}><ChapterInsert key={spread} spread={spread} travel={travel} reduced={reduced} turning={Boolean(turn)}/></Suspense>}
-      {entry==='open'&&!turn&&<PageLinks spread={spread} travel={travel} onSelect={onSelect}/>}
+      {entry==='open'&&!turn&&<PageLinks spread={spread} travel={travel} onSelect={onSelect} onPreviewImage={onPreviewImage}/>}
       {entry==='open'&&!turn&&nextSpread&&<Html transform center rotation={[-Math.PI/2,0,0]} position={[2.98,.48,2.08]} distanceFactor={3.168/1024*400} zIndexRange={[1,0]} style={{pointerEvents:'none'}}>
         <button className="study-page-corner" aria-label="Next page" onPointerDown={event=>event.stopPropagation()}
           onClick={event=>{event.stopPropagation();onSelect(nextSpread);}}/>
@@ -366,7 +397,7 @@ function DeskModel({ entry, canOpen, onOpen, onOpened, travel, pages, spread, tu
       <NotebookEntry flap={model.flap} leather={model.leather} phase={entry} reduced={reduced} canOpen={canOpen} popup={entryPopup} onOpen={onOpen} onOpened={onOpened}/>
       <CampSmoke visible={entry==='open' && spread==='start' && !turn} reduced={reduced}/>
       <Passport visible={entry==='open' && passportVisible && spread === 'start' && !turn} disabled={Boolean(turn)} onStamp={onStamp} />
-      <NotebookCat visible={entry==='open' && spread === 'start' && !turn} reduced={reduced} request={catRequest} destination={catDestination} origin={model.campOrigin} onPhase={onCatPhase} onRequest={onCatRequest} />
+      <NotebookCat visible={entry==='open' && spread === 'start' && !turn} reduced={reduced} request={catRequest} destination={catDestination} origin={model.campOrigin} chairSeat={model.chairSeat} chairRequest={chairRequest} onChairRequest={()=>setChairRequest(value=>value+1)} onPhase={onCatPhase} onRequest={onCatRequest} />
       </group>
     </>
   );
@@ -385,11 +416,11 @@ function AmbientAnimation({active}:{active:boolean}) {
   return null;
 }
 
-function Scene({ entry, canOpen, onOpen, onOpened, travel, pages, spread, view, readSide, turn, reduced, resetToken, onZoomChange, onReset, catRequest, catDestination, onCatPhase, onCatRequest, onReady, onTurned, onCampClick, onSelect, onStamp, passportVisible }: {
+function Scene({ entry, canOpen, onOpen, onOpened, travel, pages, spread, view, readSide, turn, reduced, resetToken, onZoomChange, onReset, catRequest, catDestination, onCatPhase, onCatRequest, onReady, onTurned, onCampClick, onSelect, onPreviewImage, onStamp, passportVisible }: {
   travel:TravelActions; entry: EntryPhase; canOpen: boolean; onOpen: () => void; onOpened: () => void;
   resetToken:number;onZoomChange:(value:number)=>void;onReset:()=>void; pages: Pages; spread: Spread; view: View; readSide: PageSide; turn: Turn | null; reduced: boolean;
   catRequest: number; catDestination:CampPoint|null; onCatPhase: (phase: CatPhase) => void; onCatRequest: () => void;
-  onReady: () => void; onTurned: (spread: Spread) => void; onCampClick: (point:CampPoint) => void; onSelect: (spread: Spread) => void;
+  onReady: () => void; onTurned: (spread: Spread) => void; onCampClick: (point:CampPoint) => void; onSelect: (spread: Spread) => void; onPreviewImage: () => void;
   onStamp: (chapter: StampChapter) => void; passportVisible: boolean;
 }) {
   const controls = useRef<OrbitControlsImpl>(null);
@@ -407,7 +438,7 @@ function Scene({ entry, canOpen, onOpen, onOpened, travel, pages, spread, view, 
         <Lightformer form="rect" intensity={2.5} color="#fff5df" position={[-4, 5, 2]} rotation={[0, -.5, -Math.PI / 4]} scale={[5, 7, 1]} />
         <Lightformer form="rect" intensity={.7} color="#d9e3ee" position={[4, 3, -4]} rotation={[0, Math.PI*.75, 0]} scale={[4, 5, 1]} />
       </Environment>
-      <DeskModel {...{ travel, entry, canOpen, onOpen, onOpened, pages, spread, turn, reduced, catRequest, catDestination, onCatPhase, onCatRequest, onReady, onTurned, onCampClick, onSelect, onStamp, passportVisible }} />
+      <DeskModel {...{ travel, entry, canOpen, onOpen, onOpened, pages, spread, turn, reduced, catRequest, catDestination, onCatPhase, onCatRequest, onReady, onTurned, onCampClick, onSelect, onPreviewImage, onStamp, passportVisible }} />
       {canOpen&&<ChapterPreload/>}
       <OrbitControls ref={controls} makeDefault enablePan={false} enableZoom={false} enableDamping
         minPolarAngle={.28} maxPolarAngle={1.25} minAzimuthAngle={-Math.PI/2} maxAzimuthAngle={Math.PI/2}
@@ -419,6 +450,7 @@ function Scene({ entry, canOpen, onOpen, onOpened, travel, pages, spread, view, 
 function Study() {
   const [pages, setPages] = useState<Pages | null>(null);
   const [failed, setFailed] = useState(false);
+  const [previewImage,setPreviewImage]=useState(false);
   const [ready, setReady] = useState(false);
   const [entry,setEntry]=useState<EntryPhase>('closed');
   const [canOpen,setCanOpen]=useState(false);
@@ -489,7 +521,7 @@ function Study() {
     setCatDestination(point);setCatRequest(value=>value+1);
   }
   function walkCat() {
-    if (!ready || entry!=='open' || turnLock.current || catPhase !== 'idle') return;
+    if (!ready || entry!=='open' || turnLock.current || !['idle','sit','sleep'].includes(catPhase)) return;
     walkFocus.current = document.activeElement instanceof HTMLButtonElement ? document.activeElement : null;
     setCatDestination(null);
     setCatRequest(value => value + 1);
@@ -554,17 +586,18 @@ function Study() {
           <Suspense fallback={null}>
             {pages && <Scene {...{ entry, canOpen, travel, pages, spread, view, readSide, turn, reduced, resetToken }} onZoomChange={setNotebookZoom} onReset={returnToDesk} onReady={() => setReady(true)} onOpen={openBook} onOpened={finishEntry}
               catRequest={catRequest} catDestination={catDestination} onCatPhase={setCatPhase} onCatRequest={walkCat} onTurned={finishTurn}
-              onCampClick={moveCat} onSelect={select}
+              onCampClick={moveCat} onSelect={select} onPreviewImage={()=>setPreviewImage(true)}
               onStamp={chooseStamp} passportVisible={view === 'desk' || (view === 'read' && readSide === 'left')} />}
           </Suspense>
       </div>
+      {previewImage&&<ImagePreview onClose={()=>setPreviewImage(false)}/>}
       <NotebookOpening active={!pages || !ready}/>
       {failed && <div className="study-loading" role="alert"><p>The paper couldn’t load.</p><button onClick={() => location.reload()}>Try again</button></div>}
       <div className={`study-caption${view === 'world' ? ' study-caption--close' : ''}`}>
         {entry==='open'&&view==='desk'?<span className="study-zoom-hint">{notebookZoom>.95?'Scroll back to zoom out':'Scroll to look closer'}</span>:<>
         <p>{entry==='closed'?'A notebook, waiting to be opened.':entry==='opening'?'Opening…':view === 'world' ? (spread==='start'?'The campsite':spread==='making'?'Desert Detour':'Slow Post Station') : spread === 'start' ? 'A small world. A little room to wander.' : spread==='making'?'Making · References, Build together, Refine':spread==='making-notes'?'Making · Process notes':spread==='projects'?'Projects · PawPal':'Contact · Slow Post Station'}</p>
-        <span className="study-hint-desktop">{entry==='closed' ? 'Click the brass clasp to open.' : entry==='opening' ? ' ' : view === 'world' ? (spread==='start'?'Click anywhere in the campsite to move the cat.':spread==='making'?'Click the ground to walk; the balloon to receive a letter.':'Click the ground to walk; the postbox to collect a postmark.')+' Escape returns to the desk.' : spread === 'start' ? 'Click the campsite to move the cat. Choose a passport stamp to turn pages.' : 'Drag gently to change your point of view.'}</span>
-        <span className="study-hint-mobile">{entry==='closed' ? 'Click the brass clasp to open.' : entry==='opening' ? ' ' : view === 'world' ? (spread==='start'?'Click anywhere in the campsite to move the cat.':spread==='making'?'Click the ground to walk; the balloon to receive a letter.':'Click the ground to walk; the postbox to collect a postmark.')+' Escape returns to the desk.' : spread === 'start' ? 'Tap the campsite to move the cat. Read the pages to choose a stamp.' : 'Drag gently to change your point of view.'}</span>
+        <span className="study-hint-desktop">{entry==='closed' ? 'Click the brass clasp to open.' : entry==='opening' ? ' ' : view === 'world' ? (spread==='start'?'Click the ground to walk; the chair to rest. Click the chair again for a nap.':spread==='making'?'Click the ground to walk; the balloon to receive a letter.':'Click the ground to walk; the postbox to collect a postmark.')+' Escape returns to the desk.' : spread === 'start' ? 'Click the campsite to move the cat. Choose a passport stamp to turn pages.' : 'Drag gently to change your point of view.'}</span>
+        <span className="study-hint-mobile">{entry==='closed' ? 'Click the brass clasp to open.' : entry==='opening' ? ' ' : view === 'world' ? (spread==='start'?'Click the ground to walk; the chair to rest. Click the chair again for a nap.':spread==='making'?'Click the ground to walk; the balloon to receive a letter.':'Click the ground to walk; the postbox to collect a postmark.')+' Escape returns to the desk.' : spread === 'start' ? 'Tap the campsite to move the cat. Read the pages to choose a stamp.' : 'Drag gently to change your point of view.'}</span>
         </>}
       </div>
       <nav id="study-controls" className="study-controls" aria-label="Notebook controls">
@@ -577,7 +610,7 @@ function Study() {
           </button>}
         </div>
         <div className="study-actions">
-          {spread === 'start' && view === 'world' && <button disabled={!ready || entry!=='open' || Boolean(turn) || catPhase !== 'idle'} onClick={walkCat} aria-label="Walk with the cat">{catPhase === 'idle' ? 'Walk with the cat' : 'Walking…'}</button>}
+          {spread === 'start' && view === 'world' && <button disabled={!ready || entry!=='open' || Boolean(turn) || !['idle','sit','sleep'].includes(catPhase)} onClick={walkCat} aria-label="Walk with the cat">{['idle','sit','sleep'].includes(catPhase) ? 'Walk with the cat' : 'Walking…'}</button>}
           {spread==='making'&&<button onClick={()=>select('making-notes')} disabled={Boolean(turn)}>Process notes →</button>}
           {spread==='making-notes'&&<button onClick={()=>select('making')} disabled={Boolean(turn)}>← Making</button>}
           {spread==='making'&&view==='world'&&<button className="study-primary" onClick={travel.startDesert} disabled={Boolean(turn)||journey!=='ready'}>{journey==='collected'?'Airmail received':journey==='ready'?'Receive airmail':'Receiving…'}</button>}
@@ -588,11 +621,11 @@ function Study() {
         </div>
       </nav>
       <div className="study-screenreader" role="status" aria-live="polite">
-        {entry!=='open' ? (entry==='closed'?'Notebook closed. Use Open notebook to begin.':'Opening the notebook.') : catPhase !== 'idle' ? `Cat ${catPhase === 'turn' ? 'turning' : catPhase === 'walk' ? 'walking' : 'stopping'}.` : turn ? 'Turning the page.' : `${chapterOf(spread)} chapter. ${view === 'world' ? 'Exploring the paper world. Press Escape to return.' : view === 'read' ? 'Reading view. Press Escape to return.' : 'Desk view.'}`}
+        {entry!=='open' ? (entry==='closed'?'Notebook closed. Use Open notebook to begin.':'Opening the notebook.') : catPhase !== 'idle' ? `Cat ${catPhase === 'turn' ? 'turning' : catPhase === 'walk' ? 'walking' : catPhase === 'jump' ? 'jumping' : catPhase === 'sit' ? 'sitting by the fire' : catPhase === 'sleep' ? 'sleeping on the chair' : 'stopping'}.` : turn ? 'Turning the page.' : `${chapterOf(spread)} chapter. ${view === 'world' ? 'Exploring the paper world. Press Escape to return.' : view === 'read' ? 'Reading view. Press Escape to return.' : 'Desk view.'}`}
       </div>
       <section className="study-screenreader" aria-label="Notebook text">
         <h1>Fiona’s little world</h1>
-        {spread==='start'?<><h2>Traveler’s passport</h2><p>Start, Making, Projects, Contact.</p><p>Scroll or use + and - to zoom. Press 0 to see the whole notebook. Click the campsite to choose where the cat walks.</p></>:spread==='making'?<><h2>Desert Detour / Making</h2><p>References: desk photos and paper-craft references; explore the look through prototypes. Build together: created with AI, Blender and Three.js; connect the notebook, scenes and cat. Refine: review screenshots and test in-browser; adjust the paper, movement and details.</p></>:spread==='making-notes'?<><h2>Process notes</h2><p>A layout overview and actual before-and-after screenshots of this website.</p></>:spread==='projects'?<><h2>PawPal</h2><p>A personal desktop companion that shows agent activity.</p></>:<><h2>About Fiona</h2><p>I work with data and build small tools. Email fionabfeng@gmail.com. Use the postbox to collect a station postmark.</p></>}
+        {spread==='start'?<><h2>Traveler’s passport</h2><p>Start, Making, Projects, Contact.</p><p>Scroll or use + and - to zoom. Press 0 to see the whole notebook. Click the campsite to choose where the cat walks.</p></>:spread==='making'?<><h2>Desert Detour / Making</h2><p>References: desk photos and paper-craft references; explore the look through prototypes. Build together: created with AI, Blender and Three.js; connect the notebook, scenes and cat. Refine: review screenshots and test in-browser; adjust the paper, movement and details.</p></>:spread==='making-notes'?<><h2>Process notes</h2><p>A layout overview and actual before-and-after screenshots of this website.</p></>:spread==='projects'?<><h2>PawPal</h2><p>A desktop pet for macOS and Windows. AI agent updates in little thought bubbles. Gentle nudges for water, breaks and focus. Meeting reminders, plus a monthly journal to track your water and break habits.</p></>:<><h2>About Fiona</h2><p>I work with data and build small tools. Email fionabfeng@gmail.com. Use the postbox to collect a station postmark.</p></>}
 
       </section>
     </main>

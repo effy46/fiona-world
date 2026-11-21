@@ -16,8 +16,8 @@ try{
  await page.locator('.study-actions').getByRole('button',{name:'Process notes →',exact:true}).click();await page.locator('[data-spread="making-notes"][data-turning="false"]').waitFor({timeout:10000});await page.waitForTimeout(1500);await shot('05-process-notes');checks.push('Making continuation with a layout overview and actual comparison screenshots');
  await select('Projects');await shot('06-projects');checks.push('Projects PawPal collage and reserved next project');
  await select('Contact');await shot('07-contact');
- if(await page.getByRole('link',{name:'Email Fiona',exact:true}).getAttribute('href')!=='mailto:fionabfeng@gmail.com')throw Error('Email mismatch');
- if(await page.getByRole('link',{name:'Open résumé PDF',exact:true}).count())throw Error('Placeholder résumé offered as final PDF');
+ if(!await page.getByRole('button',{name:'Email Fiona',exact:true}).isEnabled())throw Error('Email action unavailable');
+ if(await page.getByRole('button',{name:'Open résumé PDF',exact:true}).count())throw Error('Placeholder résumé offered as final PDF');
  if(await page.locator('a[href^="#TODO"]').count())throw Error('Fake placeholder link rendered');
  await page.getByRole('button',{name:'Read the pages',exact:true}).click();await page.waitForTimeout(1800);await shot('08-contact-read');
  await page.getByRole('button',{name:'Collect station postmark',exact:true}).click();await page.locator('[data-post-state="sent"]').waitFor({timeout:13000});await shot('09-posted');checks.push('Contact station on left, right-page contact links and postmark');
@@ -26,7 +26,7 @@ try{
  if(await page.locator('main').getAttribute('data-opening')!=='open')throw Error('Opening restarted during navigation');checks.push('chapter jumps, reverse turns and shared progress without reopening');
  await page.setViewportSize({width:390,height:844});await page.waitForTimeout(1700);await shot('10-mobile-contact');
  await page.getByRole('button',{name:'Read the pages',exact:true}).click();await page.waitForTimeout(1800);await shot('11-mobile-contact-read');
- const box=await page.getByRole('link',{name:'Email Fiona',exact:true}).boundingBox();if(!box||box.x+box.width/2<0||box.x+box.width/2>390)throw Error('Contact target outside right reading page');
+ const box=await page.getByRole('button',{name:'Email Fiona',exact:true}).boundingBox();if(!box||box.x+box.width/2<0||box.x+box.width/2>390)throw Error('Contact target outside right reading page');
  await select('Making');await shot('12-mobile-making');
  await page.getByRole('button',{name:'Read the pages',exact:true}).click();await page.waitForTimeout(1800);await shot('13-mobile-making-read');
  if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw Error('Mobile overflow');checks.push('mobile right-page reading, projected links and no overflow');

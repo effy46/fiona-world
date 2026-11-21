@@ -3,10 +3,10 @@ const out='output/playwright/page-zoom';await mkdir(out,{recursive:true});const 
 async function zoom(value){await p.locator(`[data-notebook-zoom="${value.toFixed(3)}"]`).waitFor({timeout:5000});await p.waitForTimeout(1500);}
 async function wheel(delta,x=850,y=440){await p.mouse.move(x,y);await p.mouse.wheel(0,delta);}
 async function select(spread){if(spread==='making-notes')await p.getByRole('button',{name:'Process notes →',exact:true}).click();else await p.locator('.study-chapters').getByRole('button',{name:spread[0].toUpperCase()+spread.slice(1),exact:true}).click();await p.locator(`[data-spread="${spread}"][data-turning="false"]`).waitFor({timeout:15000});await p.waitForTimeout(1400);}
-function selector(spread){return spread==='contact'?'a[aria-label="Email Fiona"]':'.study-page-corner';}
+function selector(spread){return spread==='contact'?'button[aria-label="Email Fiona"]':'.study-page-corner';}
 async function width(spread){return p.locator(selector(spread)).evaluate(e=>e.getBoundingClientRect().width);}
 async function anchoredRightPage(spread){
- const target=spread==='making'?'button[aria-label="Open process notes"]':'a[aria-label="Email Fiona"]';
+ const target=spread==='making'?'button[aria-label="Open process notes"]':'button[aria-label="Email Fiona"]';
  const point=await p.locator(target).evaluate((el,up)=>{el.style.position='relative';const mark=document.createElement('span');mark.id='zoom-anchor';Object.assign(mark.style,{position:'absolute',left:'50%',top:up+'px',width:'0',height:'0',pointerEvents:'none'});el.append(mark);const r=mark.getBoundingClientRect();return {x:r.x,y:r.y};},spread==='making'?-500:62);
  const before=await cameraFromHtml(p,1200,900,selector(spread));for(let i=0;i<4;i++)await wheel(-300,point.x,point.y);await zoom(1);
  const after=await cameraFromHtml(p,1200,900,selector(spread));assert(before.quaternion.angleTo(after.quaternion)<.0002,`${spread}: wheel rotated the view`);

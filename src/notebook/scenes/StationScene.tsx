@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useMemo, useRef } from 'react';
 import {TravelCat} from './TravelCat';
 import {useTravelWalk} from './useTravelWalk';
 import {TrainSteam} from './TrainSteam';
-import { Text, useGLTF, useTexture } from '@react-three/drei';
+import { Billboard, Text, useGLTF, useTexture } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 const lampXs = [-1.98,.99] as const;
@@ -161,19 +161,21 @@ export function StationScene({ state, reducedMotion, onDelivered, onPost, paused
   const letter = useRef<THREE.Group>(null);
   const progress = useRef(0);
   const catTarget=postboxX-.64;
+  const postStandZ=-.28;
   useEffect(() => {
     progress.current = state === 'sent' ? 1 : 0;postingReady.current=false;
     if(letter.current)letter.current.visible=false;
-    if(!paused&&state==='posting')walk.moveTo([catTarget,-.28],()=>{postingReady.current=true;progress.current=.6;});
+    if(!paused&&state==='posting')walk.moveTo([catTarget,postStandZ],()=>{postingReady.current=true;progress.current=.6;});
   }, [state,paused,catTarget]);
   useFrame((_, dt) => {
     if (state !== 'posting'||!postingReady.current) return;
     progress.current = Math.min(1, progress.current + Math.min(dt, 0.08) / (reducedMotion ? 0.15 : 4.2));
     const t = progress.current;
     if (letter.current) {
-      const post = THREE.MathUtils.clamp((t - 0.6) / 0.3, 0, 1);
-      letter.current.position.set(catTarget+.03+post*(postboxX-catTarget-.03), THREE.MathUtils.lerp(.3+.74*catSize/1.35,1.25,post) + Math.sin(post * Math.PI) * 0.15, -0.11 - post * 0.15);
-      letter.current.scale.setScalar(1 - post * 0.95);
+      // Hold the full envelope briefly, then shrink only as it enters the slot.
+      const post = THREE.MathUtils.clamp((t - 0.7) / 0.25, 0, 1);
+      letter.current.position.set(catTarget+.03+post*(postboxX-catTarget-.03), THREE.MathUtils.lerp(.3+.74*catSize/1.35,1.25,post) + Math.sin(post * Math.PI) * 0.15, THREE.MathUtils.lerp(postStandZ+.17,-.26,post));
+      letter.current.scale.setScalar(1 - THREE.MathUtils.clamp((post-.8)/.2,0,1)*.7);
       letter.current.visible = t > 0.56 && post < 0.98;
     }
     if (t === 1) onDelivered();
@@ -204,10 +206,10 @@ export function StationScene({ state, reducedMotion, onDelivered, onPost, paused
         {[-0.32, 0.32].map((x) => <Block key={x} at={[x, 0.13, 0.12]} size={[0.055, 0.25, 0.3]} color="#66563c" />)}
       </group>
       <StationNameboard x={(lampXs[0]+lampXs[1])/2}/>
-      <group ref={catGroup} position={[.72, .3, -.28]}>
-        <TravelCat size={catSize} pose={walk.pose} interactive={!paused} label="Walk with station cat" onWalk={()=>{onCancelPost();walk.moveTo([.1,.1]);}}/>
+      <group ref={catGroup} position={[.45, .3, -.18]}>
+        <TravelCat uprightDepth size={catSize} pose={walk.pose} interactive={!paused} label="Walk with station cat" onWalk={()=>{onCancelPost();walk.moveTo([.1,.1]);}}/>
       </group>
-      <group ref={letter} visible={false}><Envelope at={[0, 0, 0]} scale={0.66} /></group>
+      <group ref={letter} visible={false}><Billboard><Envelope at={[0, 0, 0]} scale={1.5} /></Billboard></group>
       <SteamTrain active={!paused} reduced={reducedMotion}/>
       {Array.from({ length: 18 }, (_, i) => <mesh key={i} position={[-2.7 + (i * 1.37) % 5.4, 0.19, 2.86 + (i % 3) * 0.12]} rotation={[-Math.PI / 2, 0, i * 0.91]}><circleGeometry args={[0.055 + (i % 3) * 0.013, 5]} /><Paper color={['#bf7140', '#a64a32', '#d4a34f'][i % 3]} /></mesh>)}
       <Label at={[0, 0.105, 3.23]} size={0.15} flat hand>Slow Post Station</Label>
